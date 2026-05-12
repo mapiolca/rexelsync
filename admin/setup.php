@@ -39,6 +39,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
 require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
 require_once __DIR__.'/../lib/rexelsync.lib.php';
+require_once __DIR__.'/../class/rexelsync.class.php';
 
 $langs->loadLangs(array('admin', 'companies', 'suppliers', 'rexelsync@rexelsync'));
 
@@ -65,35 +66,47 @@ if ($action === 'create_supplier') {
 }
 
 if ($action === 'update') {
-	$authMode = GETPOST('REXELSYNC_AUTH_MODE', 'alpha');
-	if (!in_array($authMode, array('none', 'bearer', 'apikey', 'oauth2'), true)) {
-		$authMode = 'bearer';
+	$environment = RexelSync::normalizeEnvironment(GETPOST('REXELSYNC_ENVIRONMENT', 'alpha'));
+	$tenantId = trim(GETPOST('REXELSYNC_TENANT_ID', 'restricthtml'));
+	if ($tenantId === '') {
+		$tenantId = RexelSync::DEFAULT_TENANT_ID;
 	}
 
 	$baseUrl = trim(GETPOST('REXELSYNC_BASE_URL', 'restricthtml'));
-	if ($baseUrl === '') {
-		$baseUrl = 'https://api.rexel.fr';
+	$tokenUrl = trim(GETPOST('REXELSYNC_TOKEN_URL', 'restricthtml'));
+	$tokenScope = trim(GETPOST('REXELSYNC_TOKEN_SCOPE', 'restricthtml'));
+	if ($environment !== RexelSync::ENV_CUSTOM) {
+		$baseUrl = RexelSync::getDefaultBaseUrl($environment);
+		$tokenUrl = RexelSync::buildDefaultTokenUrl($tenantId);
+		$tokenScope = RexelSync::getDefaultTokenScope($environment);
+	} else {
+		if ($baseUrl === '') {
+			$baseUrl = RexelSync::getDefaultBaseUrl(RexelSync::ENV_DEV);
+		}
+		if ($tokenUrl === '') {
+			$tokenUrl = RexelSync::buildDefaultTokenUrl($tenantId);
+		}
 	}
 
 	dolibarr_set_const($db, 'REXELSYNC_SUPPLIER_ID', (string) GETPOST('REXELSYNC_SUPPLIER_ID', 'int'), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_ID_CUSTOMER', trim(GETPOST('REXELSYNC_ID_CUSTOMER', 'alphanohtml')), 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'REXELSYNC_ENVIRONMENT', $environment, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'REXELSYNC_TENANT_ID', $tenantId, 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_BASE_URL', $baseUrl, 'chaine', 0, '', $conf->entity);
-	dolibarr_set_const($db, 'REXELSYNC_AUTH_MODE', $authMode, 'chaine', 0, '', $conf->entity);
-	dolibarr_set_const($db, 'REXELSYNC_API_KEY_HEADER', trim(GETPOST('REXELSYNC_API_KEY_HEADER', 'restricthtml')) ?: 'x-api-key', 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'REXELSYNC_AUTH_MODE', 'oauth2', 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'REXELSYNC_API_KEY_HEADER', RexelSync::SUBSCRIPTION_KEY_HEADER, 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_CLIENT_ID', trim(GETPOST('REXELSYNC_CLIENT_ID', 'restricthtml')), 'chaine', 0, '', $conf->entity);
-	dolibarr_set_const($db, 'REXELSYNC_TOKEN_URL', trim(GETPOST('REXELSYNC_TOKEN_URL', 'restricthtml')), 'chaine', 0, '', $conf->entity);
-	dolibarr_set_const($db, 'REXELSYNC_TOKEN_SCOPE', trim(GETPOST('REXELSYNC_TOKEN_SCOPE', 'restricthtml')), 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'REXELSYNC_TOKEN_URL', $tokenUrl, 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'REXELSYNC_TOKEN_SCOPE', $tokenScope, 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_ID_COD_ORIGIN', trim(GETPOST('REXELSYNC_ID_COD_ORIGIN', 'alphanohtml')), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_AGENCE_CODE', trim(GETPOST('REXELSYNC_AGENCE_CODE', 'alphanohtml')), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_ZIP_CODE', trim(GETPOST('REXELSYNC_ZIP_CODE', 'alphanohtml')), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_CITY', trim(GETPOST('REXELSYNC_CITY', 'restricthtml')), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_SALES_AGREEMENT', trim(GETPOST('REXELSYNC_SALES_AGREEMENT', 'alphanohtml')), 'chaine', 0, '', $conf->entity);
-	dolibarr_set_const($db, 'REXELSYNC_BATCH_SIZE', (string) max(0, GETPOST('REXELSYNC_BATCH_SIZE', 'int')), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_DELAY_MS', (string) max(0, GETPOST('REXELSYNC_DELAY_MS', 'int')), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_DEFAULT_QTY', (string) max(1, GETPOST('REXELSYNC_DEFAULT_QTY', 'int')), 'chaine', 0, '', $conf->entity);
 
 	foreach (array(
-		'REXELSYNC_BEARER_TOKEN' => 'REXELSYNC_BEARER_TOKEN',
 		'REXELSYNC_API_KEY' => 'REXELSYNC_API_KEY',
 		'REXELSYNC_CLIENT_SECRET' => 'REXELSYNC_CLIENT_SECRET',
 	) as $postName => $constName) {
@@ -121,11 +134,27 @@ print dol_get_fiche_head($head, 'settings', $title, -1, 'fa-sync');
 
 $supplierOptions = rexelsyncGetSupplierOptions($db);
 $currentSupplierId = getDolGlobalInt('REXELSYNC_SUPPLIER_ID');
-$authMode = getDolGlobalString('REXELSYNC_AUTH_MODE') ?: 'bearer';
-$baseUrl = getDolGlobalString('REXELSYNC_BASE_URL') ?: 'https://api.rexel.fr';
-$hasBearer = getDolGlobalString('REXELSYNC_BEARER_TOKEN') !== '';
-$hasApiKey = getDolGlobalString('REXELSYNC_API_KEY') !== '';
+$rawEnvironment = getDolGlobalString('REXELSYNC_ENVIRONMENT');
+if ($rawEnvironment === '' && getDolGlobalString('REXELSYNC_BASE_URL') === RexelSync::PRD_BASE_URL) {
+	$rawEnvironment = RexelSync::ENV_PRD;
+}
+$environment = RexelSync::normalizeEnvironment($rawEnvironment);
+$tenantId = getDolGlobalString('REXELSYNC_TENANT_ID') ?: RexelSync::DEFAULT_TENANT_ID;
+$baseUrl = getDolGlobalString('REXELSYNC_BASE_URL');
+if ($environment !== RexelSync::ENV_CUSTOM || $baseUrl === '') {
+	$baseUrl = RexelSync::getDefaultBaseUrl($environment);
+}
+$tokenUrl = getDolGlobalString('REXELSYNC_TOKEN_URL');
+if ($environment !== RexelSync::ENV_CUSTOM || $tokenUrl === '') {
+	$tokenUrl = RexelSync::buildDefaultTokenUrl($tenantId);
+}
+$tokenScope = getDolGlobalString('REXELSYNC_TOKEN_SCOPE');
+if ($environment !== RexelSync::ENV_CUSTOM || $tokenScope === '') {
+	$tokenScope = RexelSync::getDefaultTokenScope($environment);
+}
+$hasSubscriptionKey = getDolGlobalString('REXELSYNC_API_KEY') !== '';
 $hasClientSecret = getDolGlobalString('REXELSYNC_CLIENT_SECRET') !== '';
+$advancedOpen = $environment === RexelSync::ENV_CUSTOM ? ' open' : '';
 
 print '<form method="POST" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="token" value="'.newToken().'">';
@@ -134,32 +163,32 @@ print '<input type="hidden" name="action" value="update">';
 print '<table class="noborder centpercent">';
 print '<tr class="liste_titre"><td colspan="3">'.$langs->trans('RexelSyncSupplierMapping').'</td></tr>';
 print '<tr class="oddeven">';
-print '<td class="titlefield">'.$langs->trans('RexelSyncSupplier').'</td>';
+print '<td class="titlefield">'.rexelsyncLabelWithTooltip('RexelSyncSupplier', 'RexelSyncSupplierHelp', true).'</td>';
 print '<td>'.$form->selectarray('REXELSYNC_SUPPLIER_ID', $supplierOptions, $currentSupplierId, 1, 0, 0, '', 0, 0, 0, '', 'minwidth300').'</td>';
 print '<td class="opacitymedium">'.$langs->trans('RexelSyncSupplierHelp').'</td>';
 print '</tr>';
 
 print '<tr class="liste_titre"><td colspan="3">'.$langs->trans('RexelSyncApiSettings').'</td></tr>';
-print rexelsyncInputRow('RexelSyncBaseUrl', 'REXELSYNC_BASE_URL', $baseUrl, 'url', 'RexelSyncBaseUrlHelp', true);
+print rexelsyncSelectRow('RexelSyncEnvironment', 'REXELSYNC_ENVIRONMENT', array(
+	RexelSync::ENV_DEV => $langs->trans('RexelSyncEnvironmentDev'),
+	RexelSync::ENV_PRD => $langs->trans('RexelSyncEnvironmentPrd'),
+	RexelSync::ENV_CUSTOM => $langs->trans('RexelSyncEnvironmentCustom'),
+), $environment, 'RexelSyncEnvironmentHelp', true, $form);
 print rexelsyncInputRow('RexelSyncCustomerId', 'REXELSYNC_ID_CUSTOMER', getDolGlobalString('REXELSYNC_ID_CUSTOMER'), 'text', 'RexelSyncCustomerIdHelp', true);
-print '<tr class="oddeven">';
-print '<td>'.$langs->trans('RexelSyncAuthMode').'</td>';
-print '<td>'.$form->selectarray('REXELSYNC_AUTH_MODE', array(
-	'none' => $langs->trans('RexelSyncAuthNone'),
-	'bearer' => $langs->trans('RexelSyncAuthBearer'),
-	'apikey' => $langs->trans('RexelSyncAuthApiKey'),
-	'oauth2' => $langs->trans('RexelSyncAuthOAuth2'),
-), $authMode, 0, 0, 0, '', 0, 0, 0, '', 'minwidth300').'</td>';
-print '<td class="opacitymedium">'.$langs->trans('RexelSyncAuthModeHelp').'</td>';
-print '</tr>';
+print rexelsyncSecretRow('RexelSyncSubscriptionKey', 'REXELSYNC_API_KEY', $hasSubscriptionKey, 'RexelSyncSubscriptionKeyHelp', true);
+print rexelsyncInputRow('RexelSyncClientId', 'REXELSYNC_CLIENT_ID', getDolGlobalString('REXELSYNC_CLIENT_ID'), 'text', 'RexelSyncClientIdHelp', true);
+print rexelsyncSecretRow('RexelSyncClientSecret', 'REXELSYNC_CLIENT_SECRET', $hasClientSecret, 'RexelSyncClientSecretHelp', true);
+print '</table>';
 
-print rexelsyncSecretRow('RexelSyncBearerToken', 'REXELSYNC_BEARER_TOKEN', $hasBearer, 'RexelSyncBearerTokenHelp');
-print rexelsyncInputRow('RexelSyncApiKeyHeader', 'REXELSYNC_API_KEY_HEADER', getDolGlobalString('REXELSYNC_API_KEY_HEADER') ?: 'x-api-key', 'text', 'RexelSyncApiKeyHeaderHelp', false);
-print rexelsyncSecretRow('RexelSyncApiKey', 'REXELSYNC_API_KEY', $hasApiKey, 'RexelSyncApiKeyHelp');
-print rexelsyncInputRow('RexelSyncClientId', 'REXELSYNC_CLIENT_ID', getDolGlobalString('REXELSYNC_CLIENT_ID'), 'text', 'RexelSyncClientIdHelp', false);
-print rexelsyncSecretRow('RexelSyncClientSecret', 'REXELSYNC_CLIENT_SECRET', $hasClientSecret, 'RexelSyncClientSecretHelp');
-print rexelsyncInputRow('RexelSyncTokenUrl', 'REXELSYNC_TOKEN_URL', getDolGlobalString('REXELSYNC_TOKEN_URL'), 'url', 'RexelSyncTokenUrlHelp', false);
-print rexelsyncInputRow('RexelSyncTokenScope', 'REXELSYNC_TOKEN_SCOPE', getDolGlobalString('REXELSYNC_TOKEN_SCOPE'), 'text', 'RexelSyncTokenScopeHelp', false);
+print '<details class="rexelsync-advanced-config"'.$advancedOpen.'>';
+print '<summary class="opacitymedium">'.$langs->trans('RexelSyncAdvancedSettings').'</summary>';
+print '<table class="noborder centpercent">';
+print '<tr class="oddeven"><td colspan="3" class="opacitymedium">'.$langs->trans('RexelSyncAdvancedSettingsHelp').'</td></tr>';
+print '<tr class="liste_titre"><td colspan="3">'.$langs->trans('RexelSyncAdvancedConnectionSettings').'</td></tr>';
+print rexelsyncInputRow('RexelSyncBaseUrl', 'REXELSYNC_BASE_URL', $baseUrl, 'url', 'RexelSyncBaseUrlHelp', false);
+print rexelsyncInputRow('RexelSyncTenantId', 'REXELSYNC_TENANT_ID', $tenantId, 'text', 'RexelSyncTenantIdHelp', false);
+print rexelsyncInputRow('RexelSyncTokenUrl', 'REXELSYNC_TOKEN_URL', $tokenUrl, 'url', 'RexelSyncTokenUrlHelp', false);
+print rexelsyncInputRow('RexelSyncTokenScope', 'REXELSYNC_TOKEN_SCOPE', $tokenScope, 'text', 'RexelSyncTokenScopeHelp', false);
 
 print '<tr class="liste_titre"><td colspan="3">'.$langs->trans('RexelSyncRequestSettings').'</td></tr>';
 print rexelsyncInputRow('RexelSyncIdCodOrigin', 'REXELSYNC_ID_COD_ORIGIN', getDolGlobalString('REXELSYNC_ID_COD_ORIGIN'), 'text', 'RexelSyncIdCodOriginHelp', false);
@@ -167,10 +196,10 @@ print rexelsyncInputRow('RexelSyncAgenceCode', 'REXELSYNC_AGENCE_CODE', getDolGl
 print rexelsyncInputRow('RexelSyncZipCode', 'REXELSYNC_ZIP_CODE', getDolGlobalString('REXELSYNC_ZIP_CODE'), 'text', 'RexelSyncZipCodeHelp', false);
 print rexelsyncInputRow('RexelSyncCity', 'REXELSYNC_CITY', getDolGlobalString('REXELSYNC_CITY'), 'text', 'RexelSyncCityHelp', false);
 print rexelsyncInputRow('RexelSyncSalesAgreement', 'REXELSYNC_SALES_AGREEMENT', getDolGlobalString('REXELSYNC_SALES_AGREEMENT'), 'text', 'RexelSyncSalesAgreementHelp', false);
-print rexelsyncInputRow('RexelSyncBatchSize', 'REXELSYNC_BATCH_SIZE', (string) (getDolGlobalInt('REXELSYNC_BATCH_SIZE') ?: 0), 'number', 'RexelSyncBatchSizeHelp', false, ' min="0" step="1"');
 print rexelsyncInputRow('RexelSyncDelayMs', 'REXELSYNC_DELAY_MS', (string) (getDolGlobalInt('REXELSYNC_DELAY_MS') ?: 0), 'number', 'RexelSyncDelayMsHelp', false, ' min="0" step="100"');
 print rexelsyncInputRow('RexelSyncDefaultQty', 'REXELSYNC_DEFAULT_QTY', (string) (getDolGlobalInt('REXELSYNC_DEFAULT_QTY') ?: 1), 'number', 'RexelSyncDefaultQtyHelp', false, ' min="1" step="1"');
 print '</table>';
+print '</details>';
 
 print '<div class="center">';
 print '<input type="submit" class="button button-save" value="'.$langs->trans('Save').'">';
@@ -249,6 +278,58 @@ function rexelsyncGetSupplierOptions($db)
 }
 
 /**
+ * Render a translated label with a tooltip helper.
+ *
+ * @param string $labelKey Label translation key
+ * @param string $helpKey Help translation key
+ * @param bool   $required Required
+ * @return string
+ */
+function rexelsyncLabelWithTooltip($labelKey, $helpKey, $required = false)
+{
+	global $langs;
+
+	$label = $langs->trans($labelKey);
+	$help = $langs->trans($helpKey);
+	$html = $label;
+	if ($required) {
+		$html .= '<span class="fieldrequired"> *</span>';
+	}
+	if (function_exists('img_help')) {
+		$html .= ' '.img_help(1, $help);
+	} else {
+		$html .= ' <span class="classfortooltip opacitymedium" title="'.dol_escape_htmltag($help).'">?</span>';
+	}
+
+	return $html;
+}
+
+/**
+ * Render a select row.
+ *
+ * @param string            $labelKey Label translation key
+ * @param string            $name Field name
+ * @param array<string,string> $options Select options
+ * @param string            $value Selected value
+ * @param string            $helpKey Help translation key
+ * @param bool              $required Required
+ * @param Form              $form HTML form helper
+ * @return string
+ */
+function rexelsyncSelectRow($labelKey, $name, array $options, $value, $helpKey, $required, $form)
+{
+	global $langs;
+
+	$html = '<tr class="oddeven">';
+	$html .= '<td>'.rexelsyncLabelWithTooltip($labelKey, $helpKey, $required).'</td>';
+	$html .= '<td>'.$form->selectarray($name, $options, $value, 0, 0, 0, '', 0, 0, 0, '', 'minwidth300').'</td>';
+	$html .= '<td class="opacitymedium">'.$langs->trans($helpKey).'</td>';
+	$html .= '</tr>';
+
+	return $html;
+}
+
+/**
  * Render an input row.
  *
  * @param string $labelKey Label translation key
@@ -265,7 +346,7 @@ function rexelsyncInputRow($labelKey, $name, $value, $type, $helpKey, $required,
 	global $langs;
 
 	$html = '<tr class="oddeven">';
-	$html .= '<td>'.$langs->trans($labelKey).($required ? '<span class="fieldrequired"> *</span>' : '').'</td>';
+	$html .= '<td>'.rexelsyncLabelWithTooltip($labelKey, $helpKey, $required).'</td>';
 	$html .= '<td><input type="'.$type.'" name="'.$name.'" class="minwidth300" value="'.dol_escape_htmltag($value).'"'.$extra.'></td>';
 	$html .= '<td class="opacitymedium">'.$langs->trans($helpKey).'</td>';
 	$html .= '</tr>';
@@ -280,15 +361,16 @@ function rexelsyncInputRow($labelKey, $name, $value, $type, $helpKey, $required,
  * @param string $name Field name
  * @param bool   $hasValue Existing secret
  * @param string $helpKey Help translation key
+ * @param bool   $required Required
  * @return string
  */
-function rexelsyncSecretRow($labelKey, $name, $hasValue, $helpKey)
+function rexelsyncSecretRow($labelKey, $name, $hasValue, $helpKey, $required = false)
 {
 	global $langs;
 
 	$placeholder = $hasValue ? $langs->trans('RexelSyncSecretAlreadySaved') : '';
 	$html = '<tr class="oddeven">';
-	$html .= '<td>'.$langs->trans($labelKey).'</td>';
+	$html .= '<td>'.rexelsyncLabelWithTooltip($labelKey, $helpKey, $required).'</td>';
 	$html .= '<td><input type="password" name="'.$name.'" class="minwidth300" value="" autocomplete="new-password" placeholder="'.dol_escape_htmltag($placeholder).'"></td>';
 	$html .= '<td class="opacitymedium">'.$langs->trans($helpKey).'</td>';
 	$html .= '</tr>';

@@ -20,6 +20,15 @@ class RexelSync
 	const STATUS_ERROR = 'error';
 	const STATUS_NOT_FOUND = 'not_found';
 	const STATUS_INVALID_REF = 'invalid_ref';
+	const ENV_DEV = 'dev';
+	const ENV_PRD = 'prd';
+	const ENV_CUSTOM = 'custom';
+	const DEFAULT_TENANT_ID = '822cd975-5643-4b7e-b398-69a164e55719';
+	const DEV_BASE_URL = 'https://apidev.rexel.fr';
+	const PRD_BASE_URL = 'https://api.rexel.fr';
+	const DEV_TOKEN_SCOPE = '6333c04d-110f-45f7-8f9b-d10c6f6a5781/.default';
+	const PRD_TOKEN_SCOPE = 'aee2ba94-a840-453a-9151-1355638ac04e/.default';
+	const SUBSCRIPTION_KEY_HEADER = 'Ocp-Apim-Subscription-Key';
 
 	/** @var DoliDB */
 	public $db;
@@ -139,6 +148,60 @@ class RexelSync
 	}
 
 	/**
+	 * Normalize the Rexel environment.
+	 *
+	 * @param string $environment Raw environment
+	 * @return string
+	 */
+	public static function normalizeEnvironment($environment)
+	{
+		$environment = strtolower(trim((string) $environment));
+		if (!in_array($environment, array(self::ENV_DEV, self::ENV_PRD, self::ENV_CUSTOM), true)) {
+			return self::ENV_DEV;
+		}
+
+		return $environment;
+	}
+
+	/**
+	 * Return the default API base URL for an environment.
+	 *
+	 * @param string $environment Environment
+	 * @return string
+	 */
+	public static function getDefaultBaseUrl($environment)
+	{
+		return self::normalizeEnvironment($environment) === self::ENV_PRD ? self::PRD_BASE_URL : self::DEV_BASE_URL;
+	}
+
+	/**
+	 * Return the default OAuth2 scope for an environment.
+	 *
+	 * @param string $environment Environment
+	 * @return string
+	 */
+	public static function getDefaultTokenScope($environment)
+	{
+		return self::normalizeEnvironment($environment) === self::ENV_PRD ? self::PRD_TOKEN_SCOPE : self::DEV_TOKEN_SCOPE;
+	}
+
+	/**
+	 * Build the default Azure AD v2 token URL.
+	 *
+	 * @param string $tenantId Azure AD tenant id
+	 * @return string
+	 */
+	public static function buildDefaultTokenUrl($tenantId = '')
+	{
+		$tenantId = trim((string) $tenantId);
+		if ($tenantId === '') {
+			$tenantId = self::DEFAULT_TENANT_ID;
+		}
+
+		return 'https://login.microsoftonline.com/'.$tenantId.'/oauth2/v2.0/token/';
+	}
+
+	/**
 	 * Return current module configuration.
 	 *
 	 * @return array<string,mixed>
@@ -146,28 +209,62 @@ class RexelSync
 	public function getConfig()
 	{
 		$authMode = getDolGlobalString('REXELSYNC_AUTH_MODE');
-		if ($authMode === '') {
-			$authMode = 'bearer';
+		if ($authMode === '' || $authMode === 'none' || $authMode === 'apikey') {
+			$authMode = 'oauth2';
 		}
+
+		$rawEnvironment = getDolGlobalString('REXELSYNC_ENVIRONMENT');
+		if ($rawEnvironment === '' && getDolGlobalString('REXELSYNC_BASE_URL') === self::PRD_BASE_URL) {
+			$rawEnvironment = self::ENV_PRD;
+		}
+		$environment = self::normalizeEnvironment($rawEnvironment);
+		$tenantId = trim(getDolGlobalString('REXELSYNC_TENANT_ID'));
+		if ($tenantId === '') {
+			$tenantId = self::DEFAULT_TENANT_ID;
+		}
+
+		$baseUrl = trim(getDolGlobalString('REXELSYNC_BASE_URL'));
+		if ($environment !== self::ENV_CUSTOM || $baseUrl === '') {
+			$baseUrl = self::getDefaultBaseUrl($environment);
+		}
+
+		$tokenUrl = trim(getDolGlobalString('REXELSYNC_TOKEN_URL'));
+		if ($environment !== self::ENV_CUSTOM || $tokenUrl === '') {
+			$tokenUrl = self::buildDefaultTokenUrl($tenantId);
+		}
+
+		$tokenScope = trim(getDolGlobalString('REXELSYNC_TOKEN_SCOPE'));
+		if ($environment !== self::ENV_CUSTOM || $tokenScope === '') {
+			$tokenScope = self::getDefaultTokenScope($environment);
+		}
+
+		$apiKeyHeader = getDolGlobalString('REXELSYNC_API_KEY_HEADER');
+		if ($apiKeyHeader === '' || $apiKeyHeader === 'x-api-key') {
+			$apiKeyHeader = self::SUBSCRIPTION_KEY_HEADER;
+		}
+
+		$subscriptionKey = dol_decode(getDolGlobalString('REXELSYNC_API_KEY'));
 
 		return array(
 			'supplier_id' => getDolGlobalInt('REXELSYNC_SUPPLIER_ID'),
 			'id_customer' => getDolGlobalString('REXELSYNC_ID_CUSTOMER'),
-			'base_url' => getDolGlobalString('REXELSYNC_BASE_URL') ?: 'https://api.rexel.fr',
+			'environment' => $environment,
+			'tenant_id' => $tenantId,
+			'base_url' => $baseUrl,
 			'auth_mode' => $authMode,
 			'bearer_token' => dol_decode(getDolGlobalString('REXELSYNC_BEARER_TOKEN')),
-			'api_key_header' => getDolGlobalString('REXELSYNC_API_KEY_HEADER') ?: 'x-api-key',
-			'api_key' => dol_decode(getDolGlobalString('REXELSYNC_API_KEY')),
+			'api_key_header' => $apiKeyHeader,
+			'api_key' => $subscriptionKey,
+			'subscription_key' => $subscriptionKey,
 			'client_id' => getDolGlobalString('REXELSYNC_CLIENT_ID'),
 			'client_secret' => dol_decode(getDolGlobalString('REXELSYNC_CLIENT_SECRET')),
-			'token_url' => getDolGlobalString('REXELSYNC_TOKEN_URL'),
-			'token_scope' => getDolGlobalString('REXELSYNC_TOKEN_SCOPE'),
+			'token_url' => $tokenUrl,
+			'token_scope' => $tokenScope,
 			'id_cod_origin' => getDolGlobalString('REXELSYNC_ID_COD_ORIGIN'),
 			'agence_code' => getDolGlobalString('REXELSYNC_AGENCE_CODE'),
 			'zip_code' => getDolGlobalString('REXELSYNC_ZIP_CODE'),
 			'city' => getDolGlobalString('REXELSYNC_CITY'),
 			'sales_agreement' => getDolGlobalString('REXELSYNC_SALES_AGREEMENT'),
-			'batch_size' => getDolGlobalInt('REXELSYNC_BATCH_SIZE') ?: 0,
 			'delay_ms' => getDolGlobalInt('REXELSYNC_DELAY_MS') ?: 0,
 			'default_qty' => getDolGlobalInt('REXELSYNC_DEFAULT_QTY') ?: 1,
 		);
@@ -191,14 +288,14 @@ class RexelSync
 		if (empty($config['base_url'])) {
 			$missing[] = 'URL API Rexel';
 		}
+		if (empty($config['api_key'])) {
+			$missing[] = 'cle de souscription Rexel';
+		}
 		if ($config['auth_mode'] === 'bearer' && empty($config['bearer_token'])) {
 			$missing[] = 'jeton bearer';
 		}
-		if ($config['auth_mode'] === 'apikey' && empty($config['api_key'])) {
-			$missing[] = 'cle API';
-		}
 		if ($config['auth_mode'] === 'oauth2') {
-			foreach (array('token_url' => 'URL token OAuth2', 'client_id' => 'client id', 'client_secret' => 'client secret') as $key => $label) {
+			foreach (array('token_url' => 'URL token OAuth2', 'token_scope' => 'scope OAuth2', 'client_id' => 'client id', 'client_secret' => 'client secret') as $key => $label) {
 				if (empty($config[$key])) {
 					$missing[] = $label;
 				}

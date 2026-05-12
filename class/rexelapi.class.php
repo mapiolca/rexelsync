@@ -290,37 +290,38 @@ class RexelApi
 	}
 
 	/**
-	 * Return auth headers according to configured mode.
+	 * Return subscription and authorization headers.
 	 *
 	 * @return array<int,string>|false
 	 */
 	private function getAuthHeaders()
 	{
-		$mode = !empty($this->config['auth_mode']) ? (string) $this->config['auth_mode'] : 'none';
-		if ($mode === 'none') {
-			return array();
+		$headers = array();
+		$subscriptionKey = !empty($this->config['subscription_key']) ? (string) $this->config['subscription_key'] : (!empty($this->config['api_key']) ? (string) $this->config['api_key'] : '');
+		if ($subscriptionKey === '') {
+			$this->error = 'Cle de souscription Rexel manquante';
+			return false;
 		}
+
+		$subscriptionHeader = !empty($this->config['api_key_header']) ? (string) $this->config['api_key_header'] : 'Ocp-Apim-Subscription-Key';
+		$headers[] = $subscriptionHeader.': '.$subscriptionKey;
+
+		$mode = !empty($this->config['auth_mode']) ? (string) $this->config['auth_mode'] : 'oauth2';
 		if ($mode === 'bearer') {
 			if (empty($this->config['bearer_token'])) {
 				$this->error = 'Jeton bearer Rexel manquant';
 				return false;
 			}
-			return array('Authorization: Bearer '.$this->config['bearer_token']);
-		}
-		if ($mode === 'apikey') {
-			if (empty($this->config['api_key'])) {
-				$this->error = 'Cle API Rexel manquante';
-				return false;
-			}
-			$header = !empty($this->config['api_key_header']) ? (string) $this->config['api_key_header'] : 'x-api-key';
-			return array($header.': '.$this->config['api_key']);
+			$headers[] = 'Authorization: Bearer '.$this->config['bearer_token'];
+			return $headers;
 		}
 		if ($mode === 'oauth2') {
 			$token = $this->getOauthAccessToken();
 			if ($token === false) {
 				return false;
 			}
-			return array('Authorization: Bearer '.$token);
+			$headers[] = 'Authorization: Bearer '.$token;
+			return $headers;
 		}
 
 		$this->error = 'Mode authentification Rexel inconnu: '.$mode;
@@ -337,7 +338,7 @@ class RexelApi
 		if ($this->oauthAccessToken !== null) {
 			return $this->oauthAccessToken;
 		}
-		if (empty($this->config['token_url']) || empty($this->config['client_id']) || empty($this->config['client_secret'])) {
+		if (empty($this->config['token_url']) || empty($this->config['client_id']) || empty($this->config['client_secret']) || empty($this->config['token_scope'])) {
 			$this->error = 'Configuration OAuth2 Rexel incomplete';
 			return false;
 		}
@@ -346,10 +347,8 @@ class RexelApi
 			'grant_type' => 'client_credentials',
 			'client_id' => (string) $this->config['client_id'],
 			'client_secret' => (string) $this->config['client_secret'],
+			'scope' => (string) $this->config['token_scope'],
 		);
-		if (!empty($this->config['token_scope'])) {
-			$postFields['scope'] = (string) $this->config['token_scope'];
-		}
 
 		$ch = curl_init((string) $this->config['token_url']);
 		curl_setopt_array($ch, array(
