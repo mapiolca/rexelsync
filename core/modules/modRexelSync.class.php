@@ -26,7 +26,7 @@ class modRexelSync extends DolibarrModules
 		$this->db = $db;
 		parent::__construct($db);
 
-		$this->numero = 450014;
+		$this->numero = 450015;
 		$this->rights_class = 'rexelsync';
 		$this->family = 'Les Metiers du Batiment';
 		$this->module_position = '91';
@@ -72,19 +72,19 @@ class modRexelSync extends DolibarrModules
 
 		$this->rights = array();
 		$r = 0;
-		$this->rights[$r][0] = $this->numero + $r + 1;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'Read RexelSync data and logs';
 		$this->rights[$r][3] = 1;
 		$this->rights[$r][4] = 'sync';
 		$this->rights[$r][5] = 'read';
 		$r++;
-		$this->rights[$r][0] = $this->numero + $r + 1;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'Run RexelSync synchronization';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'sync';
 		$this->rights[$r][5] = 'write';
 		$r++;
-		$this->rights[$r][0] = $this->numero + $r + 1;
+		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'Configure RexelSync';
 		$this->rights[$r][3] = 0;
 		$this->rights[$r][4] = 'config';
