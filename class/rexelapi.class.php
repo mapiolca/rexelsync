@@ -466,10 +466,38 @@ class RexelApi
 		}
 
 		if (!empty($parts)) {
+			if ($this->oauthErrorHasCode($data, '7000229')) {
+				$parts[] = 'Action requise: demander a Rexel de creer ou consentir le service principal de ce client_id dans le tenant Azure AD Rexel, ou de fournir un client_id/client_secret deja autorise pour ce tenant.';
+			}
+
 			return implode(' - ', $parts);
 		}
 
 		return $this->extractApiMessage($data, $fallback);
+	}
+
+	/**
+	 * Check whether an OAuth2 response contains a specific Azure AD error code.
+	 *
+	 * @param array<string,mixed> $data Response data
+	 * @param string              $code Error code
+	 * @return bool
+	 */
+	private function oauthErrorHasCode(array $data, $code)
+	{
+		if (!empty($data['error_codes']) && is_array($data['error_codes'])) {
+			foreach ($data['error_codes'] as $errorCode) {
+				if ((string) $errorCode === (string) $code) {
+					return true;
+				}
+			}
+		}
+
+		if (!empty($data['error_description']) && strpos((string) $data['error_description'], (string) $code) !== false) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
