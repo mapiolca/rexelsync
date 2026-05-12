@@ -110,7 +110,7 @@ if ($action === 'update') {
 		'REXELSYNC_API_KEY' => 'REXELSYNC_API_KEY',
 		'REXELSYNC_CLIENT_SECRET' => 'REXELSYNC_CLIENT_SECRET',
 	) as $postName => $constName) {
-		$value = GETPOST($postName, 'restricthtml');
+		$value = trim((string) GETPOST($postName, 'none'));
 		if ($value !== '') {
 			dolibarr_set_const($db, $constName, dol_encode($value), 'chaine', 0, '', $conf->entity);
 		}

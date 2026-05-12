@@ -371,7 +371,7 @@ class RexelApi
 		}
 		$data = json_decode((string) $raw, true);
 		if ($httpStatus < 200 || $httpStatus >= 300 || empty($data['access_token'])) {
-			$this->error = $this->extractApiMessage($data, 'Impossible de recuperer le token Rexel OAuth2');
+			$this->error = $this->extractOauthTokenMessage($data, 'Impossible de recuperer le token Rexel OAuth2');
 			return false;
 		}
 
@@ -433,6 +433,43 @@ class RexelApi
 		}
 
 		return $fallback;
+	}
+
+	/**
+	 * Extract a diagnostic message from an OAuth2 token response.
+	 *
+	 * @param mixed  $data Response data
+	 * @param string $fallback Fallback message
+	 * @return string
+	 */
+	private function extractOauthTokenMessage($data, $fallback)
+	{
+		if (!is_array($data)) {
+			return $fallback;
+		}
+
+		$parts = array();
+		if (!empty($data['error'])) {
+			$parts[] = (string) $data['error'];
+		}
+		if (!empty($data['error_description'])) {
+			$parts[] = (string) $data['error_description'];
+		}
+		if (!empty($data['error_codes']) && is_array($data['error_codes'])) {
+			$parts[] = 'codes '.implode(',', $data['error_codes']);
+		}
+		if (!empty($data['trace_id'])) {
+			$parts[] = 'trace_id '.$data['trace_id'];
+		}
+		if (!empty($data['correlation_id'])) {
+			$parts[] = 'correlation_id '.$data['correlation_id'];
+		}
+
+		if (!empty($parts)) {
+			return implode(' - ', $parts);
+		}
+
+		return $this->extractApiMessage($data, $fallback);
 	}
 
 	/**
