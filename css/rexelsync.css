@@ -9,3 +9,12 @@
 .rexelsync-page div.pagination li.paginationbeforearrows a:hover {
 	color: var(--color-black, #000) !important;
 }
+
+.rexelsync-page #rexelsync-run-all.butAction,
+.rexelsync-page #rexelsync-run-all.butAction:link,
+.rexelsync-page #rexelsync-run-all.butAction:visited,
+.rexelsync-page #rexelsync-run-all.butAction:hover,
+.rexelsync-page #rexelsync-run-all.butAction:active {
+	background: var(--butactionbg, #6c6aa8) !important;
+	color: #fff !important;
+}

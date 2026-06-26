@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-- Align Rexel price and stock API calls with the documented JWT plus `Ocp-Apim-Subscription-Key` authentication contract.
-- Add OAuth2 Azure AD v1 `resource` support, keeping `scope` as a fallback.
+- Align Rexel price and stock API calls with the documented OAuth2 bearer token plus `Ocp-Apim-Subscription-Key` authentication contract.
+- Keep legacy Azure AD v1 `resource` support as a hidden compatibility fallback while exposing OAuth2 `scope` in setup.
+- Simplify Rexel API setup to OAuth2 client credentials with fixed `Ocp-Apim-Subscription-Key` subscription header.
 - Send the Rexel customer word as `idCodOrigin`, keep `agenceCode` optional but validated when filled, send `orderingQty` first as a JSON number, and avoid empty optional Rexel payload fields.
 - Send optional delivery location fields to the price and stock endpoint payloads when configured, matching the extracted Rexel API documentation.
 - Retry Rexel endpoints once with string `orderingQty` when Rexel rejects the documented numeric form with `BW-RESTJSON-100016`.
@@ -23,5 +24,7 @@
 - Add sortable and filterable synchronization-list columns, including a multiselect status filter and latest-log based state/date sorting.
 - Move the synchronization row count into the Synchronization tab badge and remove the old supplier-count summary line.
 - Display known Rexel API and RexelSync error messages translated in the synchronization and log lists.
-- Replace the module pictogram with a local stylized RexelSync PNG icon compatible with Dolibarr module lists.
+- Replace the module pictogram with Rexel-logo-based PNG icons compatible with Dolibarr module lists.
 - Scope RexelSync pagination colors to Dolibarr native pagination colors.
+- Add internal setup tabs for compatibility diagnostics and module information.
+- Add the Dolibarr object pictogram PNG variant for RexelSync and fix the global synchronization button contrast.

@@ -406,44 +406,22 @@ class RexelApi
 	}
 
 	/**
-	 * Return auth headers according to configured mode.
+	 * Return OAuth2 and Rexel API Management headers.
 	 *
 	 * @return array<int,string>|false
 	 */
 	private function getAuthHeaders()
 	{
-		$mode = !empty($this->config['auth_mode']) ? (string) $this->config['auth_mode'] : 'none';
-		if ($mode === 'none') {
-			return array();
+		$token = $this->getOauthAccessToken();
+		if ($token === false) {
+			return false;
 		}
-		if ($mode === 'bearer') {
-			if (empty($this->config['bearer_token'])) {
-				$this->error = 'Jeton bearer Rexel manquant';
-				return false;
-			}
-			$subscriptionHeader = $this->getSubscriptionHeader();
-			if ($subscriptionHeader === false) {
-				return false;
-			}
-			return array_merge(array('Authorization: Bearer '.$this->config['bearer_token']), $subscriptionHeader);
-		}
-		if ($mode === 'apikey') {
-			return $this->getSubscriptionHeader();
-		}
-		if ($mode === 'oauth2') {
-			$token = $this->getOauthAccessToken();
-			if ($token === false) {
-				return false;
-			}
-			$subscriptionHeader = $this->getSubscriptionHeader();
-			if ($subscriptionHeader === false) {
-				return false;
-			}
-			return array_merge(array('Authorization: Bearer '.$token), $subscriptionHeader);
+		$subscriptionHeader = $this->getSubscriptionHeader();
+		if ($subscriptionHeader === false) {
+			return false;
 		}
 
-		$this->error = 'Mode authentification Rexel inconnu: '.$mode;
-		return false;
+		return array_merge(array('Authorization: Bearer '.$token), $subscriptionHeader);
 	}
 
 	/**
@@ -460,16 +438,20 @@ class RexelApi
 			$this->error = 'Configuration OAuth2 Rexel incomplete';
 			return false;
 		}
+		if (empty($this->config['token_resource']) && empty($this->config['token_scope'])) {
+			$this->error = 'Configuration OAuth2 Rexel incomplete';
+			return false;
+		}
 
 		$postFields = array(
 			'grant_type' => 'client_credentials',
 			'client_id' => (string) $this->config['client_id'],
 			'client_secret' => (string) $this->config['client_secret'],
 		);
-		if (!empty($this->config['token_resource'])) {
-			$postFields['resource'] = (string) $this->config['token_resource'];
-		} elseif (!empty($this->config['token_scope'])) {
+		if (!empty($this->config['token_scope'])) {
 			$postFields['scope'] = (string) $this->config['token_scope'];
+		} elseif (!empty($this->config['token_resource'])) {
+			$postFields['resource'] = (string) $this->config['token_resource'];
 		}
 
 		$ch = curl_init((string) $this->config['token_url']);
@@ -625,13 +607,7 @@ class RexelApi
 			return false;
 		}
 
-		$header = !empty($this->config['api_key_header']) ? (string) $this->config['api_key_header'] : 'Ocp-Apim-Subscription-Key';
-		if (!preg_match('/^[A-Za-z0-9-]+$/', $header)) {
-			$this->error = 'Nom d en-tete de souscription Rexel invalide';
-			return false;
-		}
-
-		return array($header.': '.$this->config['api_key']);
+		return array('Ocp-Apim-Subscription-Key: '.$this->config['api_key']);
 	}
 
 	/**

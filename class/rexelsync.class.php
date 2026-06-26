@@ -206,18 +206,10 @@ class RexelSync
 	 */
 	public function getConfig()
 	{
-		$authMode = getDolGlobalString('REXELSYNC_AUTH_MODE');
-		if ($authMode === '') {
-			$authMode = 'bearer';
-		}
-
 		return array(
 			'supplier_id' => getDolGlobalInt('REXELSYNC_SUPPLIER_ID'),
 			'id_customer' => getDolGlobalString('REXELSYNC_ID_CUSTOMER'),
 			'base_url' => getDolGlobalString('REXELSYNC_BASE_URL') ?: 'https://api.rexel.fr',
-			'auth_mode' => $authMode,
-			'bearer_token' => dol_decode(getDolGlobalString('REXELSYNC_BEARER_TOKEN')),
-			'api_key_header' => getDolGlobalString('REXELSYNC_API_KEY_HEADER') ?: 'Ocp-Apim-Subscription-Key',
 			'api_key' => dol_decode(getDolGlobalString('REXELSYNC_API_KEY')),
 			'client_id' => getDolGlobalString('REXELSYNC_CLIENT_ID'),
 			'client_secret' => dol_decode(getDolGlobalString('REXELSYNC_CLIENT_SECRET')),
@@ -260,21 +252,16 @@ class RexelSync
 		if (!empty($config['agence_code']) && !preg_match('/^[0-9]+$/', (string) $config['agence_code'])) {
 			$missing[] = 'code agence Rexel numerique';
 		}
-		if ($config['auth_mode'] === 'bearer' && empty($config['bearer_token'])) {
-			$missing[] = 'jeton bearer';
-		}
-		if (in_array($config['auth_mode'], array('bearer', 'apikey', 'oauth2'), true) && empty($config['api_key'])) {
+		if (empty($config['api_key'])) {
 			$missing[] = 'cle de souscription Rexel';
 		}
-		if ($config['auth_mode'] === 'oauth2') {
-			foreach (array('token_url' => 'URL token OAuth2', 'client_id' => 'client id', 'client_secret' => 'client secret') as $key => $label) {
-				if (empty($config[$key])) {
-					$missing[] = $label;
-				}
+		foreach (array('token_url' => 'URL token OAuth2', 'client_id' => 'client id', 'client_secret' => 'client secret') as $key => $label) {
+			if (empty($config[$key])) {
+				$missing[] = $label;
 			}
-			if (empty($config['token_resource']) && empty($config['token_scope'])) {
-				$missing[] = 'ressource ou scope OAuth2';
-			}
+		}
+		if (empty($config['token_resource']) && empty($config['token_scope'])) {
+			$missing[] = 'scope OAuth2';
 		}
 
 		return $missing;
