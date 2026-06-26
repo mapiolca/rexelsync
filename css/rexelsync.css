@@ -14,7 +14,12 @@
 .rexelsync-page #rexelsync-run-all.butAction:link,
 .rexelsync-page #rexelsync-run-all.butAction:visited,
 .rexelsync-page #rexelsync-run-all.butAction:hover,
-.rexelsync-page #rexelsync-run-all.butAction:active {
+.rexelsync-page #rexelsync-run-all.butAction:active,
+#rexelsync-run-all.rexelsync-run-all-button,
+#rexelsync-run-all.rexelsync-run-all-button:link,
+#rexelsync-run-all.rexelsync-run-all-button:visited,
+#rexelsync-run-all.rexelsync-run-all-button:hover,
+#rexelsync-run-all.rexelsync-run-all-button:active {
 	background: var(--butactionbg, #6c6aa8) !important;
 	color: #fff !important;
 }

@@ -247,7 +247,7 @@ if (!empty($missing)) {
 
 $syncAllButton = '';
 if ($user->hasRight('rexelsync', 'sync', 'write') && empty($missing)) {
-	$syncAllButton = '<a class="butAction" href="#" id="rexelsync-run-all" data-token="'.dol_escape_htmltag(newToken()).'" data-total="'.((int) $totalBatchRows).'" data-limit="'.RexelSync::normalizeBatchSize((int) $config['batch_size']).'">'.$langs->trans('RexelSyncRunAll').'</a>';
+	$syncAllButton = '<a class="butAction rexelsync-run-all-button" href="#" id="rexelsync-run-all" style="color:#fff !important;" data-token="'.dol_escape_htmltag(newToken()).'" data-total="'.((int) $totalBatchRows).'" data-limit="'.RexelSync::normalizeBatchSize((int) $config['batch_size']).'">'.$langs->trans('RexelSyncRunAll').'</a>';
 } else {
 	$syncAllButton = '<span class="butActionRefused classfortooltip" title="'.$langs->trans('RexelSyncRunAllDisabled').'">'.$langs->trans('RexelSyncRunAll').'</span>';
 }
