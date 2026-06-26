@@ -140,7 +140,7 @@ $title = $langs->trans('RexelSyncLogs');
 llxHeader('', $title);
 print '<div class="rexelsync-page">';
 
-print_barre_liste($title, $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'rexelsync@rexelsync', 0, '', '', $limit, 0, 0, 1);
+print_barre_liste($title, $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'fa-chart-bar', 0, '', '', $limit, 0, 0, 1);
 
 print '<form method="GET" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="sortfield" value="'.dol_escape_htmltag($sortfield).'">';

@@ -32,3 +32,4 @@
 - Render product references in the synchronization list with the native product `getNomUrl()` link.
 - Force the global synchronization action text to white in Dolibarr list toolbars.
 - Align synchronization and log list titles with native Dolibarr list title rendering.
+- Use the module pictogram in the left menu and Font Awesome pictograms for synchronization and log list titles.
