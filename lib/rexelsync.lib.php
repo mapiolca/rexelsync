@@ -27,17 +27,22 @@ function rexelsyncAdminPrepareHead()
 /**
  * Front tabs.
  *
- * @param string $active Active tab
+ * @param string   $active Active tab
+ * @param int|null $syncCount Optional synchronization row count
  * @return array<int,array<int,string>>
  */
-function rexelsyncPrepareHead($active = '')
+function rexelsyncPrepareHead($active = '', $syncCount = null)
 {
 	global $langs, $user;
 
 	$langs->load('rexelsync@rexelsync');
 
 	$head = array();
-	$head[] = array(dol_buildpath('/rexelsync/sync.php', 1), $langs->trans('RexelSyncSync'), 'sync');
+	$syncLabel = $langs->trans('RexelSyncSync');
+	if ($syncCount !== null) {
+		$syncLabel .= ' <span class="badge badge-info">'.((int) $syncCount).'</span>';
+	}
+	$head[] = array(dol_buildpath('/rexelsync/sync.php', 1), $syncLabel, 'sync');
 	$head[] = array(dol_buildpath('/rexelsync/logs.php', 1), $langs->trans('RexelSyncLogs'), 'logs');
 	if (!empty($user->admin) || $user->hasRight('rexelsync', 'config', 'write')) {
 		$head[] = array(dol_buildpath('/rexelsync/admin/setup.php', 1), $langs->trans('RexelSyncSetup'), 'settings');
@@ -71,6 +76,9 @@ function rexelsyncStatusBadge($status)
 	}
 	if ($status === 'invalid_ref') {
 		return '<span class="badge badge-status8">'.$langs->trans('RexelSyncStatusInvalidRef').'</span>';
+	}
+	if ($status === 'never_synced') {
+		return '<span class="badge badge-status0">'.$langs->trans('RexelSyncStatusNeverSynced').'</span>';
 	}
 	if ($status === 'error') {
 		return '<span class="badge badge-status8">'.$langs->trans('RexelSyncStatusError').'</span>';

@@ -59,20 +59,56 @@ if (empty($page) || $page < 0 || GETPOST('button_search', 'alpha') || GETPOST('b
 $limit = GETPOST('limit', 'int') ?: $conf->liste_limit;
 $limitWasSet = GETPOSTISSET('limit');
 $offset = $limit * $page;
+$removeFilter = (bool) GETPOST('button_removefilter', 'alpha');
 
+$statusOptions = rexelsyncStatusOptions($langs);
+$searchPriceLineId = GETPOST('search_price_line_id', 'int') > 0 ? (string) GETPOST('search_price_line_id', 'int') : '';
 $searchRefProduct = trim(GETPOST('search_ref_product', 'alphanohtml'));
 $searchLabelProduct = trim(GETPOST('search_label_product', 'alphanohtml'));
 $searchRefFourn = trim(GETPOST('search_ref_fourn', 'alphanohtml'));
-if (GETPOST('button_removefilter', 'alpha')) {
+$searchParsedRef = trim(GETPOST('search_parsed_ref', 'alphanohtml'));
+$searchPriceMin = trim(GETPOST('search_price_min', 'restricthtml'));
+$searchPriceMax = trim(GETPOST('search_price_max', 'restricthtml'));
+$searchStockMin = trim(GETPOST('search_stock_min', 'restricthtml'));
+$searchStockMax = trim(GETPOST('search_stock_max', 'restricthtml'));
+$searchStatuses = rexelsyncGetStatusFilter(array_keys($statusOptions));
+$searchLastSyncStart = rexelsyncGetDateFilterValues('search_last_sync_start', false);
+$searchLastSyncEnd = rexelsyncGetDateFilterValues('search_last_sync_end', true);
+if ($removeFilter) {
+	$searchPriceLineId = '';
 	$searchRefProduct = '';
 	$searchLabelProduct = '';
 	$searchRefFourn = '';
+	$searchParsedRef = '';
+	$searchPriceMin = '';
+	$searchPriceMax = '';
+	$searchStockMin = '';
+	$searchStockMax = '';
+	$searchStatuses = array();
+	$searchLastSyncStart = rexelsyncEmptyDateFilterValues();
+	$searchLastSyncEnd = rexelsyncEmptyDateFilterValues();
 }
 
 $filters = array(
+	'search_price_line_id' => $searchPriceLineId,
+	'price_line_id' => $searchPriceLineId,
 	'search_ref_product' => $searchRefProduct,
 	'search_label_product' => $searchLabelProduct,
 	'search_ref_fourn' => $searchRefFourn,
+	'search_parsed_ref' => $searchParsedRef,
+	'search_price_min' => $searchPriceMin,
+	'search_price_max' => $searchPriceMax,
+	'search_stock_min' => $searchStockMin,
+	'search_stock_max' => $searchStockMax,
+	'search_status' => $searchStatuses,
+	'search_last_sync_start' => !empty($searchLastSyncStart['timestamp']) ? $db->idate((int) $searchLastSyncStart['timestamp']) : '',
+	'search_last_sync_end' => !empty($searchLastSyncEnd['timestamp']) ? $db->idate((int) $searchLastSyncEnd['timestamp']) : '',
+	'search_last_sync_startday' => (string) $searchLastSyncStart['day'],
+	'search_last_sync_startmonth' => (string) $searchLastSyncStart['month'],
+	'search_last_sync_startyear' => (string) $searchLastSyncStart['year'],
+	'search_last_sync_endday' => (string) $searchLastSyncEnd['day'],
+	'search_last_sync_endmonth' => (string) $searchLastSyncEnd['month'],
+	'search_last_sync_endyear' => (string) $searchLastSyncEnd['year'],
 );
 $listContextQuery = rexelsyncBuildListContextQuery($sortfield, $sortorder, $page, $limit, $limitWasSet, $filters);
 $listContextUrl = $_SERVER['PHP_SELF'].($listContextQuery !== '' ? '?'.$listContextQuery : '');
@@ -194,28 +230,14 @@ if ($action === 'syncall') {
 $totalRows = $sync->countSupplierPriceRows($filters);
 $totalBatchRows = $sync->countSupplierPriceRows(array());
 $rows = $sync->getSupplierPriceRows($limit, $offset, $filters, $sortfield, $sortorder);
-$priceLineIds = array();
-foreach ($rows as $row) {
-	$priceLineIds[] = (int) $row['price_line_id'];
-}
-$latestLogs = $sync->getLatestLogsByPriceLine($priceLineIds);
 
-$param = '';
-foreach (array(
-	'search_ref_product' => $searchRefProduct,
-	'search_label_product' => $searchLabelProduct,
-	'search_ref_fourn' => $searchRefFourn,
-) as $key => $value) {
-	if ($value !== '') {
-		$param .= '&'.$key.'='.urlencode($value);
-	}
-}
+$param = rexelsyncBuildListFilterParam($filters);
 
 $title = $langs->trans('RexelSyncSync');
 llxHeader('', $title);
 print load_fiche_titre($title, '', 'fa-sync');
 
-$head = rexelsyncPrepareHead('sync');
+$head = rexelsyncPrepareHead('sync', $totalRows);
 print dol_get_fiche_head($head, 'sync', $langs->trans('RexelSync'), -1, 'fa-sync');
 
 if (!empty($missing)) {
@@ -246,13 +268,6 @@ print '<button type="button" class="button" id="rexelsync-batch-close" disabled=
 print '</div>';
 print '</div>';
 
-print '<div class="opacitymedium">';
-print $langs->trans('RexelSyncRowsFound', $totalRows);
-if (!empty($config['supplier_id'])) {
-	print ' - '.$langs->trans('RexelSyncSupplierId', (int) $config['supplier_id']);
-}
-print '</div><br>';
-
 print_barre_liste('', $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'fa-sync', 0, '', '', $limit);
 
 print '<form method="GET" action="'.$_SERVER['PHP_SELF'].'">';
@@ -262,28 +277,39 @@ print '<input type="hidden" name="sortorder" value="'.dol_escape_htmltag($sortor
 print '<div class="div-table-responsive">';
 print '<table class="tagtable liste centpercent">';
 print '<tr class="liste_titre_filter">';
-print '<td class="liste_titre center">'.$form->showFilterButtons('left').'</td>';
+print '<td class="liste_titre center nowrap">'.$form->showFilterButtons('left').'<br><input type="text" class="flat width50" name="search_price_line_id" value="'.dol_escape_htmltag($searchPriceLineId).'"></td>';
 print '<td class="liste_titre"><input type="text" class="flat maxwidth100" name="search_ref_product" value="'.dol_escape_htmltag($searchRefProduct).'"></td>';
 print '<td class="liste_titre"><input type="text" class="flat maxwidth150" name="search_label_product" value="'.dol_escape_htmltag($searchLabelProduct).'"></td>';
 print '<td class="liste_titre"><input type="text" class="flat maxwidth100" name="search_ref_fourn" value="'.dol_escape_htmltag($searchRefFourn).'"></td>';
-print '<td class="liste_titre"></td>';
-print '<td class="liste_titre"></td>';
-print '<td class="liste_titre"></td>';
-print '<td class="liste_titre"></td>';
-print '<td class="liste_titre"></td>';
+print '<td class="liste_titre"><input type="text" class="flat maxwidth100" name="search_parsed_ref" value="'.dol_escape_htmltag($searchParsedRef).'"></td>';
+print '<td class="liste_titre right nowrap">';
+print '<input type="text" class="flat width75" name="search_price_min" placeholder="'.dol_escape_htmltag($langs->trans('RexelSyncFilterMin')).'" value="'.dol_escape_htmltag($searchPriceMin).'"><br>';
+print '<input type="text" class="flat width75" name="search_price_max" placeholder="'.dol_escape_htmltag($langs->trans('RexelSyncFilterMax')).'" value="'.dol_escape_htmltag($searchPriceMax).'">';
+print '</td>';
+print '<td class="liste_titre right nowrap">';
+print '<input type="text" class="flat width75" name="search_stock_min" placeholder="'.dol_escape_htmltag($langs->trans('RexelSyncFilterMin')).'" value="'.dol_escape_htmltag($searchStockMin).'"><br>';
+print '<input type="text" class="flat width75" name="search_stock_max" placeholder="'.dol_escape_htmltag($langs->trans('RexelSyncFilterMax')).'" value="'.dol_escape_htmltag($searchStockMax).'">';
+print '</td>';
+print '<td class="liste_titre nowrap">';
+print '<span class="small opacitymedium">'.$langs->trans('RexelSyncFilterFrom').'</span><br>';
+print $form->selectDate(!empty($searchLastSyncStart['timestamp']) ? (int) $searchLastSyncStart['timestamp'] : '', 'search_last_sync_start', 0, 0, 1, '', 1, 0);
+print '<br><span class="small opacitymedium">'.$langs->trans('RexelSyncFilterTo').'</span><br>';
+print $form->selectDate(!empty($searchLastSyncEnd['timestamp']) ? (int) $searchLastSyncEnd['timestamp'] : '', 'search_last_sync_end', 0, 0, 1, '', 1, 0);
+print '</td>';
+print '<td class="liste_titre">'.rexelsyncRenderStatusFilter($statusOptions, $searchStatuses).'</td>';
 print '<td class="liste_titre"></td>';
 print '</tr>';
 
 print '<tr class="liste_titre">';
-print_liste_field_titre('', $_SERVER['PHP_SELF'], '', '', $param, '', $sortfield, $sortorder, 'center ');
+print_liste_field_titre($langs->trans('ID'), $_SERVER['PHP_SELF'], 'pfp.rowid', '', $param, '', $sortfield, $sortorder, 'center ');
 print_liste_field_titre($langs->trans('Ref'), $_SERVER['PHP_SELF'], 'p.ref', '', $param, '', $sortfield, $sortorder);
 print_liste_field_titre($langs->trans('Label'), $_SERVER['PHP_SELF'], 'p.label', '', $param, '', $sortfield, $sortorder);
 print_liste_field_titre($langs->trans('RexelSyncSupplierRef'), $_SERVER['PHP_SELF'], 'pfp.ref_fourn', '', $param, '', $sortfield, $sortorder);
-print '<td>'.$langs->trans('RexelSyncParsedRef').'</td>';
+print_liste_field_titre($langs->trans('RexelSyncParsedRef'), $_SERVER['PHP_SELF'], 'parsed_ref', '', $param, '', $sortfield, $sortorder);
 print_liste_field_titre($langs->trans('RexelSyncCurrentPrice'), $_SERVER['PHP_SELF'], 'pfp.unitprice', '', $param, 'class="right"', $sortfield, $sortorder);
 print_liste_field_titre($langs->trans('RexelSyncSupplierStock'), $_SERVER['PHP_SELF'], 'ef.supplier_stock', '', $param, 'class="right"', $sortfield, $sortorder);
-print '<td class="center">'.$langs->trans('RexelSyncLastSync').'</td>';
-print '<td class="center">'.$langs->trans('Status').'</td>';
+print_liste_field_titre($langs->trans('RexelSyncLastSync'), $_SERVER['PHP_SELF'], 'lastlog.datec', '', $param, 'class="center"', $sortfield, $sortorder);
+print_liste_field_titre($langs->trans('Status'), $_SERVER['PHP_SELF'], 'lastlog.status', '', $param, 'class="center"', $sortfield, $sortorder);
 print '<td class="center">'.$langs->trans('Action').'</td>';
 print '</tr>';
 
@@ -292,7 +318,14 @@ if (empty($rows)) {
 }
 
 foreach ($rows as $row) {
-	$log = !empty($latestLogs[$row['price_line_id']]) ? $latestLogs[$row['price_line_id']] : null;
+	$log = null;
+	if (!empty($row['last_sync_status']) || !empty($row['last_sync_datec'])) {
+		$log = array(
+			'datec' => $row['last_sync_datec'],
+			'status' => $row['last_sync_status'],
+			'message' => $row['last_sync_message'],
+		);
+	}
 	print '<tr class="oddeven">';
 	print '<td class="center">'.((int) $row['price_line_id']).'</td>';
 	print '<td><a href="'.DOL_URL_ROOT.'/product/card.php?id='.((int) $row['fk_product']).'">'.dol_escape_htmltag($row['ref_product']).'</a></td>';
@@ -318,6 +351,8 @@ foreach ($rows as $row) {
 		if (!empty($log['message'])) {
 			print '<br><span class="small opacitymedium">'.dol_escape_htmltag(dol_trunc($log['message'], 80)).'</span>';
 		}
+	} else {
+		print rexelsyncStatusBadge(RexelSync::STATUS_NEVER_SYNCED);
 	}
 	print '</td>';
 	print '<td class="center">';
@@ -366,7 +401,7 @@ if ($user->hasRight('rexelsync', 'sync', 'write') && empty($missing)) {
 	print 'function finish(message) { state.running = false; $("#rexelsync-batch-status").text(message); $("#rexelsync-batch-stop").prop("disabled", true); $("#rexelsync-batch-close").prop("disabled", false); }';
 	print 'function showError(message) { $("#rexelsync-batch-error").text(message || rexelsyncTexts.ajax_error).show(); finish(message || rexelsyncTexts.ajax_error); }';
 	print 'function runNextBatch() { if (!state || state.stopped) { finish(rexelsyncTexts.stopped); return; } $.ajax({type: "POST", url: rexelsyncUrl, dataType: "json", data: {action: "syncbatch", token: state.token, offset: state.offset}}).done(function(response) { if (response && response.token) { state.token = response.token; } if (!response || response.success === false || response.fatal) { showError(response && response.message ? response.message : rexelsyncTexts.ajax_error); return; } state.total = parseInt(response.total || state.total || 0, 10); state.offset = parseInt(response.next_offset || 0, 10); state.processed = Math.min(state.total, state.processed + parseInt(response.processed || 0, 10)); addStats(state.stats, response.stats || {}); $("#rexelsync-batch-message").text(response.message || ""); if (state.total <= 0) { renderProgress(rexelsyncTexts.no_rows); finish(rexelsyncTexts.no_rows); return; } renderProgress(formatText(rexelsyncTexts.running, [state.processed, state.total])); if (state.stopped) { finish(rexelsyncTexts.stopped); return; } if (response.done) { renderProgress(rexelsyncTexts.done); finish(rexelsyncTexts.done); return; } window.setTimeout(runNextBatch, 100); }).fail(function(xhr) { var message = rexelsyncTexts.ajax_error; if (xhr.responseJSON && xhr.responseJSON.message) { message = xhr.responseJSON.message; } showError(message); }); }';
-	print '$("#rexelsync-run-all").on("click", function(event) { event.preventDefault(); var $button = $(this); state = {token: $button.data("token"), total: parseInt($button.data("total") || 0, 10), limit: parseInt($button.data("limit") || 250, 10), offset: 0, processed: 0, stats: emptyStats(), stopped: false, running: true}; $("#rexelsync-batch-error").hide().text(""); $("#rexelsync-batch-message").text(""); $("#rexelsync-batch-stop").prop("disabled", false); $("#rexelsync-batch-close").prop("disabled", true); renderProgress(rexelsyncTexts.preparing); if ($.fn.dialog) { $dialog.dialog({modal: true, width: 620, closeOnEscape: false}); } else { $dialog.show(); } runNextBatch(); });';
+	print '$("#rexelsync-run-all").on("click", function(event) { event.preventDefault(); var $button = $(this); state = {token: $button.data("token"), total: parseInt($button.data("total") || 0, 10), limit: parseInt($button.data("limit") || 50, 10), offset: 0, processed: 0, stats: emptyStats(), stopped: false, running: true}; $("#rexelsync-batch-error").hide().text(""); $("#rexelsync-batch-message").text(""); $("#rexelsync-batch-stop").prop("disabled", false); $("#rexelsync-batch-close").prop("disabled", true); renderProgress(rexelsyncTexts.preparing); if ($.fn.dialog) { $dialog.dialog({modal: true, width: 620, closeOnEscape: false}); } else { $dialog.show(); } runNextBatch(); });';
 	print '$("#rexelsync-batch-stop").on("click", function() { if (state) { state.stopped = true; $("#rexelsync-batch-stop").prop("disabled", true); $("#rexelsync-batch-status").text(rexelsyncTexts.stopped); } });';
 	print '$("#rexelsync-batch-close").on("click", function() { window.location.href = window.location.href; });';
 	print '});';
@@ -386,7 +421,7 @@ $db->close();
  * @param int                  $page Page
  * @param int                  $limit Limit
  * @param bool                 $includeLimit Include limit in query
- * @param array<string,string> $filters Filters
+ * @param array<string,mixed>  $filters Filters
  * @return string
  */
 function rexelsyncBuildListContextQuery($sortfield, $sortorder, $page, $limit, $includeLimit, array $filters)
@@ -399,13 +434,162 @@ function rexelsyncBuildListContextQuery($sortfield, $sortorder, $page, $limit, $
 	if (!empty($includeLimit) && (int) $limit > 0) {
 		$params['limit'] = (string) ((int) $limit);
 	}
-	foreach (array('search_ref_product', 'search_label_product', 'search_ref_fourn') as $key) {
+	$params = array_merge($params, rexelsyncBuildListFilterParams($filters));
+
+	return http_build_query($params, '', '&');
+}
+
+/**
+ * Build filter-only query string for list links.
+ *
+ * @param array<string,mixed> $filters Filters
+ * @return string
+ */
+function rexelsyncBuildListFilterParam(array $filters)
+{
+	$params = rexelsyncBuildListFilterParams($filters);
+	$query = http_build_query($params, '', '&');
+
+	return $query !== '' ? '&'.$query : '';
+}
+
+/**
+ * Build filter-only parameters.
+ *
+ * @param array<string,mixed> $filters Filters
+ * @return array<string,mixed>
+ */
+function rexelsyncBuildListFilterParams(array $filters)
+{
+	$params = array();
+	foreach (array(
+		'search_price_line_id',
+		'search_ref_product',
+		'search_label_product',
+		'search_ref_fourn',
+		'search_parsed_ref',
+		'search_price_min',
+		'search_price_max',
+		'search_stock_min',
+		'search_stock_max',
+		'search_last_sync_startday',
+		'search_last_sync_startmonth',
+		'search_last_sync_startyear',
+		'search_last_sync_endday',
+		'search_last_sync_endmonth',
+		'search_last_sync_endyear',
+	) as $key) {
 		if (!empty($filters[$key])) {
 			$params[$key] = (string) $filters[$key];
 		}
 	}
+	if (!empty($filters['search_status']) && is_array($filters['search_status'])) {
+		$params['search_status'] = array_values($filters['search_status']);
+	}
 
-	return http_build_query($params, '', '&');
+	return $params;
+}
+
+/**
+ * Return status filter options.
+ *
+ * @param Translate $langs Language handler
+ * @return array<string,string>
+ */
+function rexelsyncStatusOptions($langs)
+{
+	return array(
+		RexelSync::STATUS_UPDATED => $langs->trans('RexelSyncStatusUpdated'),
+		RexelSync::STATUS_STOCK_UPDATED => $langs->trans('RexelSyncStatusStockUpdated'),
+		RexelSync::STATUS_UNCHANGED => $langs->trans('RexelSyncStatusUnchanged'),
+		RexelSync::STATUS_NOT_FOUND => $langs->trans('RexelSyncStatusNotFound'),
+		RexelSync::STATUS_INVALID_REF => $langs->trans('RexelSyncStatusInvalidRef'),
+		RexelSync::STATUS_ERROR => $langs->trans('RexelSyncStatusError'),
+		RexelSync::STATUS_NEVER_SYNCED => $langs->trans('RexelSyncStatusNeverSynced'),
+	);
+}
+
+/**
+ * Read and validate selected statuses.
+ *
+ * @param array<int,string> $allowedStatuses Allowed statuses
+ * @return array<int,string>
+ */
+function rexelsyncGetStatusFilter(array $allowedStatuses)
+{
+	$rawStatuses = GETPOST('search_status', 'array');
+	if (!is_array($rawStatuses)) {
+		return array();
+	}
+
+	$statuses = array();
+	foreach ($rawStatuses as $status) {
+		$status = (string) $status;
+		if (in_array($status, $allowedStatuses, true) && !in_array($status, $statuses, true)) {
+			$statuses[] = $status;
+		}
+	}
+
+	return $statuses;
+}
+
+/**
+ * Render the native multiselect2 status filter.
+ *
+ * @param array<string,string> $statusOptions Status options
+ * @param array<int,string>    $selectedStatuses Selected statuses
+ * @return string
+ */
+function rexelsyncRenderStatusFilter(array $statusOptions, array $selectedStatuses)
+{
+	$html = '<select class="flat maxwidth150 multiselect2" multiple="multiple" name="search_status[]">';
+	foreach ($statusOptions as $status => $label) {
+		$selected = in_array((string) $status, $selectedStatuses, true) ? ' selected="selected"' : '';
+		$html .= '<option value="'.dol_escape_htmltag((string) $status).'"'.$selected.'>'.dol_escape_htmltag($label).'</option>';
+	}
+	$html .= '</select>';
+
+	return $html;
+}
+
+/**
+ * Return empty date filter values.
+ *
+ * @return array{timestamp:int,day:int,month:int,year:int}
+ */
+function rexelsyncEmptyDateFilterValues()
+{
+	return array(
+		'timestamp' => 0,
+		'day' => 0,
+		'month' => 0,
+		'year' => 0,
+	);
+}
+
+/**
+ * Read date filter values generated by Form::selectDate().
+ *
+ * @param string $prefix Field prefix
+ * @param bool   $endOfDay Use end of selected day
+ * @return array{timestamp:int,day:int,month:int,year:int}
+ */
+function rexelsyncGetDateFilterValues($prefix, $endOfDay)
+{
+	$values = rexelsyncEmptyDateFilterValues();
+	$day = GETPOST($prefix.'day', 'int');
+	$month = GETPOST($prefix.'month', 'int');
+	$year = GETPOST($prefix.'year', 'int');
+	if ($day <= 0 || $month <= 0 || $year <= 0) {
+		return $values;
+	}
+
+	$values['day'] = (int) $day;
+	$values['month'] = (int) $month;
+	$values['year'] = (int) $year;
+	$values['timestamp'] = dol_mktime($endOfDay ? 23 : 0, $endOfDay ? 59 : 0, $endOfDay ? 59 : 0, (int) $month, (int) $day, (int) $year);
+
+	return $values;
 }
 
 /**

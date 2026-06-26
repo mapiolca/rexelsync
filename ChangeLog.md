@@ -19,3 +19,6 @@
 - Align the module descriptor compatibility floor with Dolibarr v20+ and PHP 8.0+.
 - Replace full-page all-product synchronization with capped AJAX batches and a progress dialog to avoid long PHP requests.
 - Preserve sync list sorting, pagination, limit, and filters after one-line synchronization.
+- Set the default interactive synchronization batch size to 50 rows while keeping the server maximum at 250.
+- Add sortable and filterable synchronization-list columns, including a multiselect status filter and latest-log based state/date sorting.
+- Move the synchronization row count into the Synchronization tab badge and remove the old supplier-count summary line.

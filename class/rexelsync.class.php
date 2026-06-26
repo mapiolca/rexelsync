@@ -20,7 +20,8 @@ class RexelSync
 	const STATUS_ERROR = 'error';
 	const STATUS_NOT_FOUND = 'not_found';
 	const STATUS_INVALID_REF = 'invalid_ref';
-	const DEFAULT_BATCH_SIZE = 250;
+	const STATUS_NEVER_SYNCED = 'never_synced';
+	const DEFAULT_BATCH_SIZE = 50;
 	const MAX_BATCH_SIZE = 250;
 
 	/** @var DoliDB */
@@ -293,7 +294,7 @@ class RexelSync
 	/**
 	 * Count Rexel supplier price rows.
 	 *
-	 * @param array<string,string> $filters Filters
+	 * @param array<string,mixed> $filters Filters
 	 * @return int
 	 */
 	public function countSupplierPriceRows(array $filters = array())
@@ -305,6 +306,8 @@ class RexelSync
 
 		$sql = "SELECT COUNT(pfp.rowid) AS nb FROM ".MAIN_DB_PREFIX."product_fournisseur_price AS pfp";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."product AS p ON p.rowid = pfp.fk_product";
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product_fournisseur_price_extrafields AS ef ON ef.fk_object = pfp.rowid";
+		$sql .= $this->buildLatestLogJoinSql();
 		$sql .= " WHERE pfp.fk_soc = ".((int) $config['supplier_id']);
 		$sql .= " AND pfp.entity IN (".getEntity('productsupplierprice').")";
 		$sql .= " AND pfp.ref_fourn IS NOT NULL AND TRIM(pfp.ref_fourn) <> ''";
@@ -324,7 +327,7 @@ class RexelSync
 	 *
 	 * @param int                  $limit Limit
 	 * @param int                  $offset Offset
-	 * @param array<string,string> $filters Filters
+	 * @param array<string,mixed> $filters Filters
 	 * @param string               $sortfield Sort field
 	 * @param string               $sortorder Sort order
 	 * @return array<int,array<string,mixed>>
@@ -341,8 +344,11 @@ class RexelSync
 			'p.label' => 'p.label',
 			'pfp.ref_fourn' => 'pfp.ref_fourn',
 			'pfp.rowid' => 'pfp.rowid',
+			'parsed_ref' => 'pfp.ref_fourn',
 			'pfp.unitprice' => 'pfp.unitprice',
 			'ef.supplier_stock' => 'ef.supplier_stock',
+			'lastlog.datec' => 'lastlog.datec',
+			'lastlog.status' => 'lastlog.status',
 		);
 		if (empty($allowedSortFields[$sortfield])) {
 			$sortfield = 'p.ref';
@@ -352,10 +358,12 @@ class RexelSync
 		$sql = "SELECT pfp.rowid AS price_line_id, pfp.fk_product, p.ref AS ref_product, p.label AS label_product,";
 		$sql .= " pfp.ref_fourn, pfp.price, pfp.unitprice, pfp.quantity, pfp.tva_tx, pfp.remise_percent, pfp.remise,";
 		$sql .= " pfp.charges, pfp.fk_availability, pfp.delivery_time_days, pfp.supplier_reputation, pfp.desc_fourn,";
-		$sql .= " ef.supplier_stock";
+		$sql .= " ef.supplier_stock, lastlog.datec AS last_sync_datec, lastlog.status AS last_sync_status,";
+		$sql .= " lastlog.message AS last_sync_message, lastlog.http_status AS last_sync_http_status";
 		$sql .= " FROM ".MAIN_DB_PREFIX."product_fournisseur_price AS pfp";
 		$sql .= " INNER JOIN ".MAIN_DB_PREFIX."product AS p ON p.rowid = pfp.fk_product";
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product_fournisseur_price_extrafields AS ef ON ef.fk_object = pfp.rowid";
+		$sql .= $this->buildLatestLogJoinSql();
 		$sql .= " WHERE pfp.fk_soc = ".((int) $config['supplier_id']);
 		$sql .= " AND pfp.entity IN (".getEntity('productsupplierprice').")";
 		$sql .= " AND pfp.ref_fourn IS NOT NULL AND TRIM(pfp.ref_fourn) <> ''";
@@ -397,6 +405,10 @@ class RexelSync
 				'desc_fourn' => $obj->desc_fourn,
 				'supplier_stock' => ($obj->supplier_stock !== null ? (float) $obj->supplier_stock : null),
 				'valid_ref' => !empty($parsed['valid']),
+				'last_sync_datec' => $obj->last_sync_datec,
+				'last_sync_status' => $obj->last_sync_status,
+				'last_sync_message' => $obj->last_sync_message,
+				'last_sync_http_status' => ($obj->last_sync_http_status !== null ? (int) $obj->last_sync_http_status : null),
 			);
 		}
 
@@ -847,9 +859,27 @@ class RexelSync
 	}
 
 	/**
+	 * Build latest-log join for supplier price rows.
+	 *
+	 * @return string
+	 */
+	private function buildLatestLogJoinSql()
+	{
+		$sql = " LEFT JOIN (";
+		$sql .= " SELECT fk_product_fournisseur_price, MAX(rowid) AS maxrowid";
+		$sql .= " FROM ".MAIN_DB_PREFIX."rexelsync_log";
+		$sql .= " WHERE entity IN (".getEntity('product').")";
+		$sql .= " GROUP BY fk_product_fournisseur_price";
+		$sql .= " ) AS latestlog ON latestlog.fk_product_fournisseur_price = pfp.rowid";
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."rexelsync_log AS lastlog ON lastlog.rowid = latestlog.maxrowid";
+
+		return $sql;
+	}
+
+	/**
 	 * Build supplier rows SQL filters.
 	 *
-	 * @param array<string,string> $filters Filters
+	 * @param array<string,mixed> $filters Filters
 	 * @return string
 	 */
 	private function buildSupplierRowsFilterSql(array $filters)
@@ -867,8 +897,101 @@ class RexelSync
 		if (!empty($filters['search_ref_fourn'])) {
 			$sql .= " AND pfp.ref_fourn LIKE '%".$this->db->escape($filters['search_ref_fourn'])."%'";
 		}
+		if (!empty($filters['search_parsed_ref'])) {
+			$sql .= " AND pfp.ref_fourn LIKE '%".$this->db->escape($filters['search_parsed_ref'])."%'";
+		}
+
+		$priceMin = $this->normalizeNumericFilter(!empty($filters['search_price_min']) ? $filters['search_price_min'] : '');
+		if ($priceMin !== null) {
+			$sql .= " AND pfp.unitprice >= ".price2num($priceMin);
+		}
+		$priceMax = $this->normalizeNumericFilter(!empty($filters['search_price_max']) ? $filters['search_price_max'] : '');
+		if ($priceMax !== null) {
+			$sql .= " AND pfp.unitprice <= ".price2num($priceMax);
+		}
+		$stockMin = $this->normalizeNumericFilter(!empty($filters['search_stock_min']) ? $filters['search_stock_min'] : '');
+		if ($stockMin !== null) {
+			$sql .= " AND ef.supplier_stock >= ".price2num($stockMin);
+		}
+		$stockMax = $this->normalizeNumericFilter(!empty($filters['search_stock_max']) ? $filters['search_stock_max'] : '');
+		if ($stockMax !== null) {
+			$sql .= " AND ef.supplier_stock <= ".price2num($stockMax);
+		}
+
+		$statuses = $this->filterStatusValues(!empty($filters['search_status']) && is_array($filters['search_status']) ? $filters['search_status'] : array());
+		if (!empty($statuses)) {
+			$statusSql = array();
+			$includeNeverSynced = false;
+			foreach ($statuses as $status) {
+				if ($status === self::STATUS_NEVER_SYNCED) {
+					$includeNeverSynced = true;
+					continue;
+				}
+				$statusSql[] = "'".$this->db->escape($status)."'";
+			}
+			$statusParts = array();
+			if (!empty($statusSql)) {
+				$statusParts[] = "lastlog.status IN (".implode(',', $statusSql).")";
+			}
+			if ($includeNeverSynced) {
+				$statusParts[] = "lastlog.status IS NULL";
+			}
+			if (!empty($statusParts)) {
+				$sql .= " AND (".implode(' OR ', $statusParts).")";
+			}
+		}
+		if (!empty($filters['search_last_sync_start']) && preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) $filters['search_last_sync_start'])) {
+			$sql .= " AND lastlog.datec >= '".$this->db->escape((string) $filters['search_last_sync_start'])."'";
+		}
+		if (!empty($filters['search_last_sync_end']) && preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) $filters['search_last_sync_end'])) {
+			$sql .= " AND lastlog.datec <= '".$this->db->escape((string) $filters['search_last_sync_end'])."'";
+		}
 
 		return $sql;
+	}
+
+	/**
+	 * Normalize a numeric filter value.
+	 *
+	 * @param mixed $value Filter value
+	 * @return string|null
+	 */
+	private function normalizeNumericFilter($value)
+	{
+		$value = str_replace(',', '.', trim((string) $value));
+		if ($value === '' || !is_numeric($value)) {
+			return null;
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Keep only known synchronization status filters.
+	 *
+	 * @param array<int,mixed> $statuses Submitted statuses
+	 * @return array<int,string>
+	 */
+	private function filterStatusValues(array $statuses)
+	{
+		$allowedStatuses = array(
+			self::STATUS_UPDATED,
+			self::STATUS_STOCK_UPDATED,
+			self::STATUS_UNCHANGED,
+			self::STATUS_ERROR,
+			self::STATUS_NOT_FOUND,
+			self::STATUS_INVALID_REF,
+			self::STATUS_NEVER_SYNCED,
+		);
+		$filtered = array();
+		foreach ($statuses as $status) {
+			$status = (string) $status;
+			if (in_array($status, $allowedStatuses, true) && !in_array($status, $filtered, true)) {
+				$filtered[] = $status;
+			}
+		}
+
+		return $filtered;
 	}
 
 	/**

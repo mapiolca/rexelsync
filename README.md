@@ -46,4 +46,4 @@ The purchase price is updated from `clientNetPrice`. Supplier stock is stored in
 
 ## Batch Synchronization
 
-The all-line synchronization button runs the Rexel supplier rows in AJAX batches to avoid long PHP requests. It always targets all Rexel supplier price rows, regardless of the filters currently visible in the list. The `REXELSYNC_BATCH_SIZE` setting controls the batch size; `0` uses the default of 250 rows and the server enforces a maximum of 250.
+The all-line synchronization button runs the Rexel supplier rows in AJAX batches to avoid long PHP requests. It always targets all Rexel supplier price rows, regardless of the filters currently visible in the list. The `REXELSYNC_BATCH_SIZE` setting controls the batch size; `0` uses the default of 50 rows and the server enforces a maximum of 250.
