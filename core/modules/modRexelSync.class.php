@@ -26,7 +26,7 @@ class modRexelSync extends DolibarrModules
 		$this->db = $db;
 		parent::__construct($db);
 
-		$this->numero = 450015;
+		$this->numero = 450016;
 		$this->rights_class = 'rexelsync';
 		$this->family = 'Les Métiers du Bâtiment';
 		$this->module_position = '91';
