@@ -188,6 +188,8 @@ class RexelSync
 		}
 		if (empty($config['id_customer'])) {
 			$missing[] = 'numero client Rexel';
+		} elseif ($this->looksLikeUuid((string) $config['id_customer'])) {
+			$missing[] = 'numero client Rexel invalide: le client_id OAuth2 ne doit pas etre utilise comme idCustomer';
 		}
 		if (empty($config['base_url'])) {
 			$missing[] = 'URL API Rexel';
@@ -213,6 +215,17 @@ class RexelSync
 		}
 
 		return $missing;
+	}
+
+	/**
+	 * Check if a value looks like an OAuth2 UUID client identifier.
+	 *
+	 * @param string $value Value to check
+	 * @return bool
+	 */
+	private function looksLikeUuid($value)
+	{
+		return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', trim($value));
 	}
 
 	/**

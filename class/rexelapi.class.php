@@ -76,7 +76,7 @@ class RexelApi
 	 */
 	public function fetchPrice($supplierCode, $supplierComRef, $qty)
 	{
-		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false);
+		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, true);
 		if ($commonPayload === false) {
 			return $this->buildClientError($this->error);
 		}
@@ -86,6 +86,18 @@ class RexelApi
 		);
 
 		$response = $this->postJson(self::PRICE_PATH, $payload);
+		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, false);
+			if ($commonPayload === false) {
+				return $this->buildClientError($this->error);
+			}
+
+			$this->debugLog('RexelSync API price retry with numeric orderingQty after BW-RESTJSON-100016');
+			$payload = array(
+				'getProductSalePricesExt' => $commonPayload,
+			);
+			$response = $this->postJson(self::PRICE_PATH, $payload);
+		}
 		if (empty($response['success'])) {
 			return array(
 				'success' => false,
@@ -141,7 +153,7 @@ class RexelApi
 	 */
 	public function fetchStock($supplierCode, $supplierComRef, $qty)
 	{
-		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true);
+		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, true);
 		if ($commonPayload === false) {
 			return $this->buildClientError($this->error);
 		}
@@ -151,6 +163,18 @@ class RexelApi
 		);
 
 		$response = $this->postJson(self::STOCK_PATH, $payload);
+		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, false);
+			if ($commonPayload === false) {
+				return $this->buildClientError($this->error);
+			}
+
+			$this->debugLog('RexelSync API stock retry with numeric orderingQty after BW-RESTJSON-100016');
+			$payload = array(
+				'getPositionsExtRequest' => $commonPayload,
+			);
+			$response = $this->postJson(self::STOCK_PATH, $payload);
+		}
 		if (empty($response['success'])) {
 			return array(
 				'success' => false,
@@ -212,15 +236,17 @@ class RexelApi
 	 * @param string $supplierComRef Supplier commercial reference
 	 * @param int    $qty Ordered quantity
 	 * @param bool   $includeDeliveryFields Include optional delivery fields
+	 * @param bool   $quantityAsString Send orderingQty as a JSON string
 	 * @return array<string,mixed>|false
 	 */
-	private function buildCommonPayload($supplierCode, $supplierComRef, $qty, $includeDeliveryFields)
+	private function buildCommonPayload($supplierCode, $supplierComRef, $qty, $includeDeliveryFields, $quantityAsString = true)
 	{
 		$agenceCode = $this->getOptionalNumericConfig('agence_code', 'Code agence Rexel invalide');
 		if ($agenceCode === false) {
 			return false;
 		}
 
+		$orderingQty = max(1, (int) $qty);
 		$payload = array(
 			'idNumVersion' => '1',
 			'idCustomer' => (string) $this->config['id_customer'],
@@ -228,7 +254,7 @@ class RexelApi
 				array(
 					'supplierCode' => (string) $supplierCode,
 					'supplierComRef' => (string) $supplierComRef,
-					'orderingQty' => (string) max(1, (int) $qty),
+					'orderingQty' => $quantityAsString ? (string) $orderingQty : $orderingQty,
 				),
 			),
 		);
@@ -632,6 +658,17 @@ class RexelApi
 		if (function_exists('dol_syslog')) {
 			dol_syslog($message, defined('LOG_DEBUG') ? LOG_DEBUG : 7);
 		}
+	}
+
+	/**
+	 * Check if Rexel/TIBCO rejected JSON schema conversion.
+	 *
+	 * @param mixed $message Response message
+	 * @return bool
+	 */
+	private function isRestJsonSchemaError($message)
+	{
+		return is_string($message) && strpos($message, 'BW-RESTJSON-100016') !== false;
 	}
 
 	/**

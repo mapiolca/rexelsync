@@ -25,9 +25,9 @@ This version targets the Rexel Discovery API endpoints:
 - `POST /external/productprices/productSalePrices`
 - `POST /external/stocks/positions`
 
-Rexel API calls are sent with the documented API Management subscription key header `Ocp-Apim-Subscription-Key` and a JWT `Authorization: Bearer ...` header when bearer or OAuth2 authentication is selected. OAuth2 supports the Azure AD v1 `resource` parameter, with `scope` kept as a fallback.
+Rexel API calls are sent with the documented API Management subscription key header `Ocp-Apim-Subscription-Key` and a JWT `Authorization: Bearer ...` header when bearer or OAuth2 authentication is selected. OAuth2 supports the Azure AD v1 `resource` parameter, with `scope` kept as a fallback. The Rexel `idCustomer` must be the Rexel customer account number, not the OAuth2 `client_id`.
 
-The Rexel customer word is sent as `idCodOrigin` when configured. The Rexel branch code is optional; when it is configured, it is sent as `agenceCode`, otherwise it is omitted from the payload. Product request quantities are sent as JSON strings in `orderingQty`, matching the Rexel API documentation. Optional delivery location fields are sent only to the stock endpoint, not to the price endpoint.
+The Rexel customer word is sent as `idCodOrigin` when configured. The Rexel branch code is optional; when it is configured, it is sent as `agenceCode`, otherwise it is omitted from the payload. Product request quantities are sent as JSON strings in `orderingQty`, matching the Rexel API documentation. If Rexel returns `BW-RESTJSON-100016`, the API call is retried once with a numeric `orderingQty` to handle stricter TIBCO schema deployments. Optional delivery location fields are sent only to the stock endpoint, not to the price endpoint.
 
 The purchase price is updated from `clientNetPrice`. Supplier stock is stored in the `supplier_stock` extrafield on `product_fournisseur_price` as:
 

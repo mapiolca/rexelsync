@@ -1,4 +1,4 @@
-CREATE TABLE llx_rexelsync_log (
+CREATE TABLE IF NOT EXISTS llx_rexelsync_log (
   rowid integer AUTO_INCREMENT PRIMARY KEY,
   entity integer DEFAULT 1 NOT NULL,
   fk_product integer NULL,
@@ -12,5 +12,11 @@ CREATE TABLE llx_rexelsync_log (
   status varchar(32) NOT NULL,
   message text NULL,
   http_status integer NULL,
-  datec datetime NOT NULL
+  datec datetime NOT NULL,
+  INDEX idx_rexelsync_log_entity (entity),
+  INDEX idx_rexelsync_log_product (fk_product),
+  INDEX idx_rexelsync_log_supplier_price (fk_product_fournisseur_price),
+  INDEX idx_rexelsync_log_ref_fourn (ref_fourn),
+  INDEX idx_rexelsync_log_status (status),
+  INDEX idx_rexelsync_log_datec (datec)
 ) ENGINE=innodb;
