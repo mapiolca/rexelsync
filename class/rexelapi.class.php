@@ -110,6 +110,30 @@ class RexelApi
 			);
 			$response = $this->postJson(self::PRICE_PATH, $payload);
 		}
+		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, true, false, true);
+			if ($commonPayload === false) {
+				return $this->buildClientError($this->error);
+			}
+
+			$this->debugLog('RexelSync API price retry with getProductSalePricesExtRequest envelope after BW-RESTJSON-100016');
+			$payload = array(
+				'getProductSalePricesExtRequest' => $commonPayload,
+			);
+			$response = $this->postJson(self::PRICE_PATH, $payload);
+		}
+		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, true, false, false);
+			if ($commonPayload === false) {
+				return $this->buildClientError($this->error);
+			}
+
+			$this->debugLog('RexelSync API price retry with single productDetails object after BW-RESTJSON-100016');
+			$payload = array(
+				'getProductSalePricesExtRequest' => $commonPayload,
+			);
+			$response = $this->postJson(self::PRICE_PATH, $payload);
+		}
 		if (empty($response['success'])) {
 			return array(
 				'success' => false,
@@ -199,6 +223,18 @@ class RexelApi
 			);
 			$response = $this->postJson(self::STOCK_PATH, $payload);
 		}
+		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, true, false, false);
+			if ($commonPayload === false) {
+				return $this->buildClientError($this->error);
+			}
+
+			$this->debugLog('RexelSync API stock retry with single productDetails object after BW-RESTJSON-100016');
+			$payload = array(
+				'getPositionsExtRequest' => $commonPayload,
+			);
+			$response = $this->postJson(self::STOCK_PATH, $payload);
+		}
 		if (empty($response['success'])) {
 			return array(
 				'success' => false,
@@ -262,9 +298,10 @@ class RexelApi
 	 * @param bool   $includeDeliveryFields Include optional delivery fields
 	 * @param bool   $quantityAsString Send orderingQty as a JSON string
 	 * @param bool   $numericScalarFields Send numeric root fields as JSON numbers
+	 * @param bool   $productDetailsAsArray Send productDetails as a JSON array
 	 * @return array<string,mixed>|false
 	 */
-	private function buildCommonPayload($supplierCode, $supplierComRef, $qty, $includeDeliveryFields, $quantityAsString = true, $numericScalarFields = false)
+	private function buildCommonPayload($supplierCode, $supplierComRef, $qty, $includeDeliveryFields, $quantityAsString = true, $numericScalarFields = false, $productDetailsAsArray = true)
 	{
 		$agenceCode = $this->getOptionalNumericConfig('agence_code', 'Code agence Rexel invalide');
 		if ($agenceCode === false) {
@@ -276,16 +313,15 @@ class RexelApi
 		}
 
 		$orderingQty = max(1, (int) $qty);
+		$productDetails = array(
+			'supplierCode' => (string) $supplierCode,
+			'supplierComRef' => (string) $supplierComRef,
+			'orderingQty' => $quantityAsString ? (string) $orderingQty : $orderingQty,
+		);
 		$payload = array(
 			'idNumVersion' => $numericScalarFields ? 1 : '1',
 			'idCustomer' => $numericScalarFields ? (int) $this->config['id_customer'] : (string) $this->config['id_customer'],
-			'productDetails' => array(
-				array(
-					'supplierCode' => (string) $supplierCode,
-					'supplierComRef' => (string) $supplierComRef,
-					'orderingQty' => $quantityAsString ? (string) $orderingQty : $orderingQty,
-				),
-			),
+			'productDetails' => $productDetailsAsArray ? array($productDetails) : $productDetails,
 		);
 
 		if ($agenceCode !== '') {
