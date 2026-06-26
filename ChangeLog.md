@@ -31,3 +31,4 @@
 - Display the RexelSync pictogram in front of the parent left menu label.
 - Render product references in the synchronization list with the native product `getNomUrl()` link.
 - Force the global synchronization action text to white in Dolibarr list toolbars.
+- Align synchronization and log list titles with native Dolibarr list title rendering.
