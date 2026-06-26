@@ -11,12 +11,13 @@ RexelSync synchronizes Dolibarr supplier purchase prices and supplier stock for 
 
 ## Reference Mapping
 
-For v1, the Dolibarr supplier reference `ref_fourn` is parsed directly:
+For v1, Rexel references are parsed with this priority:
 
-- `supplierCode`: first 3 characters of `ref_fourn`
-- `supplierComRef`: remaining characters, after trimming spaces, dashes, underscores, and slashes
+- When the product reference is explicitly formatted as `CODE_REFERENCE`, it is used first.
+- Otherwise, `ref_fourn` is parsed with the same explicit separator format when possible.
+- As a fallback, `supplierCode` is the first 3 characters of `ref_fourn` and `supplierComRef` is the remaining value after trimming spaces, dashes, underscores, and slashes.
 
-Example: `SCHAPCRBCV202` becomes `supplierCode = SCH` and `supplierComRef = APCRBCV202`.
+Examples: `3M_85851` becomes `supplierCode = 3M` and `supplierComRef = 85851`; `SCHAPCRBCV202` becomes `supplierCode = SCH` and `supplierComRef = APCRBCV202`.
 
 ## Rexel API Scope
 

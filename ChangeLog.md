@@ -9,5 +9,6 @@
 - Retry Rexel endpoints once with numeric `orderingQty` when Rexel rejects the documented string form with `BW-RESTJSON-100016`.
 - Reject UUID-shaped OAuth2 client identifiers in the Rexel customer number field before calling the API.
 - Require a numeric Rexel customer account number and retry schema rejections with numeric root scalar fields.
+- Prefer explicit product references such as `3M_85851` for Rexel `supplierCode` and `supplierComRef` before falling back to the supplier reference.
 - Make the RexelSync log table SQL idempotent to avoid duplicate table and duplicate index errors on module reactivation.
 - Add debug logs for Rexel API endpoint, masked payload, header names, and HTTP status without exposing secrets.
