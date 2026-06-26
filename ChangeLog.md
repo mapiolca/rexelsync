@@ -23,5 +23,5 @@
 - Add sortable and filterable synchronization-list columns, including a multiselect status filter and latest-log based state/date sorting.
 - Move the synchronization row count into the Synchronization tab badge and remove the old supplier-count summary line.
 - Display known Rexel API and RexelSync error messages translated in the synchronization and log lists.
-- Replace the module pictogram with a local stylized RexelSync SVG icon.
+- Replace the module pictogram with a local stylized RexelSync PNG icon compatible with Dolibarr module lists.
 - Scope RexelSync pagination colors to Dolibarr native pagination colors.
