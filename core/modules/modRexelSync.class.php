@@ -35,7 +35,7 @@ class modRexelSync extends DolibarrModules
 		$this->descriptionlong = 'RexelSyncDescLong';
 		$this->editor_name = 'RexelSync';
 		$this->editor_url = '';
-		$this->version = '1.0.3';
+		$this->version = '1.0.4';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'fa-sync';
 		$this->langfiles = array('rexelsync@rexelsync');

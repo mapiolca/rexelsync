@@ -9,11 +9,11 @@
 - Retry Rexel endpoints once with string `orderingQty` when Rexel rejects the documented numeric form with `BW-RESTJSON-100016`.
 - Reject UUID-shaped OAuth2 client identifiers in the Rexel customer number field before calling the API.
 - Require a numeric Rexel customer account number and retry schema rejections with numeric root scalar fields.
-- Prefer explicit product references such as `3M_85851` for Rexel `supplierCode` and `supplierComRef` before falling back to the supplier reference.
+- Use only the Dolibarr supplier reference `ref_fourn` to build Rexel `supplierCode` and `supplierComRef`; the product reference is ignored for Rexel API calls.
 - Add schema-compatibility retries for single-object `productDetails` payloads.
 - Make the RexelSync log table SQL idempotent to avoid duplicate table and duplicate index errors on module reactivation.
 - Add debug logs for Rexel API endpoint, masked payload, header names, HTTP status, and masked error bodies without exposing secrets.
 - Add a Rexel API client version marker to request debug logs to detect incomplete deployments.
 - Keep Rexel price and stock payload fields in the documented order required by TIBCO JSON-to-XML validation.
-- Retry alternate Rexel reference candidates parsed from `ref_fourn` when an explicit product reference is not found by Rexel.
+- Keep alternate Rexel reference candidates parsed only from `ref_fourn`, from explicit separator format to the three-character supplier-code fallback.
 - Align the module descriptor compatibility floor with Dolibarr v20+ and PHP 8.0+.

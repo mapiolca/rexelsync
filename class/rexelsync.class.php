@@ -312,8 +312,8 @@ class RexelSync
 		}
 
 		while ($obj = $this->db->fetch_object($resql)) {
-			$candidates = self::parseSupplierReferenceCandidates($obj->ref_fourn, $obj->ref_product);
-			$parsed = !empty($candidates[0]) ? $candidates[0] : self::parseSupplierReference($obj->ref_fourn, $obj->ref_product);
+			$candidates = self::parseSupplierReferenceCandidates($obj->ref_fourn);
+			$parsed = !empty($candidates[0]) ? $candidates[0] : self::parseSupplierReference($obj->ref_fourn);
 			$rows[] = array(
 				'price_line_id' => (int) $obj->price_line_id,
 				'fk_product' => (int) $obj->fk_product,
@@ -407,12 +407,12 @@ class RexelSync
 	 * Parse Dolibarr references to Rexel supplierCode and supplierComRef.
 	 *
 	 * @param string $ref Supplier ref
-	 * @param string $productRef Product ref
+	 * @param string $productRef Deprecated unused product ref
 	 * @return array<string,mixed>
 	 */
 	public static function parseSupplierReference($ref, $productRef = '')
 	{
-		$candidates = self::parseSupplierReferenceCandidates($ref, $productRef);
+		$candidates = self::parseSupplierReferenceCandidates($ref);
 		if (empty($candidates[0])) {
 			return array('valid' => false, 'supplier_code' => '', 'supplier_com_ref' => '', 'source' => '');
 		}
@@ -421,22 +421,15 @@ class RexelSync
 	}
 
 	/**
-	 * Return possible Rexel references, from most explicit to fallback.
+	 * Return possible Rexel references, from most explicit supplier reference to fallback.
 	 *
 	 * @param string $ref Supplier ref
-	 * @param string $productRef Product ref
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function parseSupplierReferenceCandidates($ref, $productRef = '')
+	private static function parseSupplierReferenceCandidates($ref)
 	{
 		$ref = trim((string) $ref);
-		$productRef = trim((string) $productRef);
 		$candidates = array();
-
-		$parsedProductRef = self::parseSeparatedSupplierReference($productRef, 'ref_product');
-		if (!empty($parsedProductRef['valid'])) {
-			$candidates[] = $parsedProductRef;
-		}
 
 		$parsedSupplierRef = self::parseSeparatedSupplierReference($ref, 'ref_fourn');
 		if (!empty($parsedSupplierRef['valid'])) {
@@ -529,7 +522,7 @@ class RexelSync
 	 */
 	private function syncRow(array $row, RexelApi $api, array $config, $user)
 	{
-		$parsed = self::parseSupplierReference($row['ref_fourn'], $row['ref_product']);
+		$parsed = self::parseSupplierReference($row['ref_fourn']);
 		if (empty($parsed['valid'])) {
 			$message = 'Reference fournisseur invalide: '.$row['ref_fourn'].' (format attendu: 3 caracteres fabricant puis reference commerciale)';
 			$this->logSync($row, $row['unitprice'], null, $row['supplier_stock'], null, self::STATUS_INVALID_REF, $message, null);
