@@ -12,6 +12,7 @@
  */
 class RexelApi
 {
+	const CLIENT_VERSION = '1.0.1';
 	const PRICE_PATH = '/external/productprices/productSalePrices';
 	const STOCK_PATH = '/external/stocks/positions';
 
@@ -365,7 +366,7 @@ class RexelApi
 			return array('success' => false, 'http_status' => 0, 'message' => 'Payload Rexel non JSON: '.json_last_error_msg(), 'data' => null);
 		}
 
-		$this->debugLog('RexelSync API request path='.$path.' headers='.implode(',', $this->getHeaderNames($headers)).' payload='.$this->jsonForLog($this->maskPayloadForLog($payload)));
+		$this->debugLog('RexelSync API client_version='.self::CLIENT_VERSION.' request path='.$path.' headers='.implode(',', $this->getHeaderNames($headers)).' payload='.$this->jsonForLog($this->maskPayloadForLog($payload)));
 
 		$ch = curl_init($url);
 		curl_setopt_array($ch, array(

@@ -13,3 +13,4 @@
 - Add schema-compatibility retries for single-object `productDetails` payloads.
 - Make the RexelSync log table SQL idempotent to avoid duplicate table and duplicate index errors on module reactivation.
 - Add debug logs for Rexel API endpoint, masked payload, header names, HTTP status, and masked error bodies without exposing secrets.
+- Add a Rexel API client version marker to request debug logs to detect incomplete deployments.
