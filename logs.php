@@ -138,12 +138,8 @@ $statusOptions = array(
 
 $title = $langs->trans('RexelSyncLogs');
 llxHeader('', $title);
-print load_fiche_titre($title, '', 'fa-list');
 
-$head = rexelsyncPrepareHead('logs');
-print dol_get_fiche_head($head, 'logs', $langs->trans('RexelSync'), -1, 'fa-sync');
-
-print_barre_liste('', $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'fa-list', 0, '', '', $limit);
+print_barre_liste($title, $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'fa-list', 0, '', '', $limit);
 
 print '<form method="GET" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="sortfield" value="'.dol_escape_htmltag($sortfield).'">';
@@ -207,10 +203,6 @@ if ($resql) {
 print '</table>';
 print '</div>';
 print '</form>';
-
-print '<div class="opacitymedium">'.$langs->trans('RexelSyncRowsFound', $totalRows).'</div>';
-
-print dol_get_fiche_end();
 
 llxFooter();
 $db->close();

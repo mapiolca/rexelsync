@@ -235,10 +235,6 @@ $param = rexelsyncBuildListFilterParam($filters);
 
 $title = $langs->trans('RexelSyncSync');
 llxHeader('', $title);
-print load_fiche_titre($title, '', 'fa-sync');
-
-$head = rexelsyncPrepareHead('sync', $totalRows);
-print dol_get_fiche_head($head, 'sync', $langs->trans('RexelSync'), -1, 'fa-sync');
 
 if (!empty($missing)) {
 	print '<div class="warning">';
@@ -247,13 +243,12 @@ if (!empty($missing)) {
 	print '</div><br>';
 }
 
-print '<div class="tabsAction">';
+$syncAllButton = '';
 if ($user->hasRight('rexelsync', 'sync', 'write') && empty($missing)) {
-	print '<a class="butAction" href="#" id="rexelsync-run-all" data-token="'.dol_escape_htmltag(newToken()).'" data-total="'.((int) $totalBatchRows).'" data-limit="'.RexelSync::normalizeBatchSize((int) $config['batch_size']).'">'.$langs->trans('RexelSyncRunAll').'</a>';
+	$syncAllButton = '<a class="butAction" href="#" id="rexelsync-run-all" data-token="'.dol_escape_htmltag(newToken()).'" data-total="'.((int) $totalBatchRows).'" data-limit="'.RexelSync::normalizeBatchSize((int) $config['batch_size']).'">'.$langs->trans('RexelSyncRunAll').'</a>';
 } else {
-	print '<span class="butActionRefused classfortooltip" title="'.$langs->trans('RexelSyncRunAllDisabled').'">'.$langs->trans('RexelSyncRunAll').'</span>';
+	$syncAllButton = '<span class="butActionRefused classfortooltip" title="'.$langs->trans('RexelSyncRunAllDisabled').'">'.$langs->trans('RexelSyncRunAll').'</span>';
 }
-print '</div>';
 
 print '<div id="rexelsync-batch-dialog" title="'.dol_escape_htmltag($langs->trans('RexelSyncBatchModalTitle')).'" style="display:none;">';
 print '<div id="rexelsync-batch-status" class="opacitymedium">'.$langs->trans('RexelSyncBatchPreparing').'</div>';
@@ -268,7 +263,7 @@ print '<button type="button" class="button" id="rexelsync-batch-close" disabled=
 print '</div>';
 print '</div>';
 
-print_barre_liste('', $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'fa-sync', 0, '', '', $limit);
+print_barre_liste($title, $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'fa-sync', 0, $syncAllButton, '', $limit);
 
 print '<form method="GET" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="sortfield" value="'.dol_escape_htmltag($sortfield).'">';
@@ -296,7 +291,7 @@ print $form->selectDate(!empty($searchLastSyncStart['timestamp']) ? (int) $searc
 print '<br><span class="small opacitymedium">'.$langs->trans('RexelSyncFilterTo').'</span><br>';
 print $form->selectDate(!empty($searchLastSyncEnd['timestamp']) ? (int) $searchLastSyncEnd['timestamp'] : '', 'search_last_sync_end', 0, 0, 1, '', 1, 0);
 print '</td>';
-print '<td class="liste_titre">'.rexelsyncRenderStatusFilter($statusOptions, $searchStatuses).'</td>';
+print '<td class="liste_titre">'.rexelsyncRenderStatusFilter($form, $statusOptions, $searchStatuses).'</td>';
 print '<td class="liste_titre"></td>';
 print '</tr>';
 
@@ -407,8 +402,6 @@ if ($user->hasRight('rexelsync', 'sync', 'write') && empty($missing)) {
 	print '});';
 	print '</script>';
 }
-
-print dol_get_fiche_end();
 
 llxFooter();
 $db->close();
@@ -536,12 +529,17 @@ function rexelsyncGetStatusFilter(array $allowedStatuses)
 /**
  * Render the native multiselect2 status filter.
  *
+ * @param Form                 $form Form helper
  * @param array<string,string> $statusOptions Status options
  * @param array<int,string>    $selectedStatuses Selected statuses
  * @return string
  */
-function rexelsyncRenderStatusFilter(array $statusOptions, array $selectedStatuses)
+function rexelsyncRenderStatusFilter($form, array $statusOptions, array $selectedStatuses)
 {
+	if (method_exists($form, 'multiselectarray')) {
+		return $form->multiselectarray('search_status', $statusOptions, $selectedStatuses, 0, 0, 'minwidth150 maxwidth250', 0, 0, '', '', '', 1);
+	}
+
 	$html = '<select class="flat maxwidth150 multiselect2" multiple="multiple" name="search_status[]">';
 	foreach ($statusOptions as $status => $label) {
 		$selected = in_array((string) $status, $selectedStatuses, true) ? ' selected="selected"' : '';
