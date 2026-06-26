@@ -76,7 +76,7 @@ class RexelApi
 	 */
 	public function fetchPrice($supplierCode, $supplierComRef, $qty)
 	{
-		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, true);
+		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, false);
 		if ($commonPayload === false) {
 			return $this->buildClientError($this->error);
 		}
@@ -87,19 +87,19 @@ class RexelApi
 
 		$response = $this->postJson(self::PRICE_PATH, $payload);
 		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
-			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, false);
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, true);
 			if ($commonPayload === false) {
 				return $this->buildClientError($this->error);
 			}
 
-			$this->debugLog('RexelSync API price retry with numeric orderingQty after BW-RESTJSON-100016');
+			$this->debugLog('RexelSync API price retry with string orderingQty after BW-RESTJSON-100016');
 			$payload = array(
 				'getProductSalePricesExt' => $commonPayload,
 			);
 			$response = $this->postJson(self::PRICE_PATH, $payload);
 		}
 		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
-			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, false, true);
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, false, true);
 			if ($commonPayload === false) {
 				return $this->buildClientError($this->error);
 			}
@@ -111,7 +111,7 @@ class RexelApi
 			$response = $this->postJson(self::PRICE_PATH, $payload);
 		}
 		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
-			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, true, false, false);
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, false, false, false);
 			if ($commonPayload === false) {
 				return $this->buildClientError($this->error);
 			}
@@ -177,7 +177,7 @@ class RexelApi
 	 */
 	public function fetchStock($supplierCode, $supplierComRef, $qty)
 	{
-		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, true);
+		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, false);
 		if ($commonPayload === false) {
 			return $this->buildClientError($this->error);
 		}
@@ -188,12 +188,12 @@ class RexelApi
 
 		$response = $this->postJson(self::STOCK_PATH, $payload);
 		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
-			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, false);
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, true);
 			if ($commonPayload === false) {
 				return $this->buildClientError($this->error);
 			}
 
-			$this->debugLog('RexelSync API stock retry with numeric orderingQty after BW-RESTJSON-100016');
+			$this->debugLog('RexelSync API stock retry with string orderingQty after BW-RESTJSON-100016');
 			$payload = array(
 				'getPositionsExtRequest' => $commonPayload,
 			);
@@ -212,7 +212,7 @@ class RexelApi
 			$response = $this->postJson(self::STOCK_PATH, $payload);
 		}
 		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
-			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, true, false, false);
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, false, false, false);
 			if ($commonPayload === false) {
 				return $this->buildClientError($this->error);
 			}
@@ -394,6 +394,8 @@ class RexelApi
 		}
 
 		if ($httpStatus < 200 || $httpStatus >= 300) {
+			$this->debugLog('RexelSync API error response path='.$path.' body='.$this->truncateLogString($this->jsonForLog($this->maskPayloadForLog($data))));
+
 			return array(
 				'success' => false,
 				'http_status' => $httpStatus,
@@ -572,19 +574,42 @@ class RexelApi
 			return $fallback;
 		}
 
-		$candidates = array('message', 'error', 'error_description', 'faultstring');
-		foreach ($candidates as $field) {
-			if (!empty($data[$field])) {
-				return (string) $data[$field];
+		$readableMessage = '';
+		$errorCode = '';
+
+		foreach (array('message', 'errorMessage', 'error_message', 'error_description', 'faultstring', 'description', 'libelle') as $field) {
+			if ($readableMessage === '' && !empty($data[$field]) && is_scalar($data[$field])) {
+				$readableMessage = (string) $data[$field];
+			}
+		}
+		foreach (array('errorCode', 'error_code', 'code', 'error') as $field) {
+			if ($errorCode === '' && !empty($data[$field]) && is_scalar($data[$field])) {
+				$errorCode = (string) $data[$field];
 			}
 		}
 
 		$iterator = new RecursiveIteratorIterator(new RecursiveArrayIterator($data));
 		foreach ($iterator as $key => $value) {
 			$key = (string) $key;
-			if (is_scalar($value) && preg_match('/message|error|libelle|description/i', $key)) {
-				return (string) $value;
+			if (!is_scalar($value)) {
+				continue;
 			}
+			if ($readableMessage === '' && preg_match('/errormessage|message|faultstring|libelle|description/i', $key) && !preg_match('/code/i', $key)) {
+				$readableMessage = (string) $value;
+			}
+			if ($errorCode === '' && preg_match('/^error$|errorcode|code/i', $key)) {
+				$errorCode = (string) $value;
+			}
+		}
+
+		if ($readableMessage !== '' && $errorCode !== '' && $readableMessage !== $errorCode) {
+			return $errorCode.' - '.$readableMessage;
+		}
+		if ($readableMessage !== '') {
+			return $readableMessage;
+		}
+		if ($errorCode !== '') {
+			return $errorCode;
 		}
 
 		return $fallback;
@@ -678,11 +703,16 @@ class RexelApi
 
 		$masked = array();
 		foreach ($value as $key => $item) {
-			if ((string) $key === 'idCustomer') {
+			$keyName = strtolower((string) $key);
+			if ($keyName === 'idcustomer' || $keyName === 'customerid') {
 				$masked[$key] = $this->isNumericString((string) $item) ? '*** (numeric)' : '*** (non-numeric)';
 				continue;
 			}
-			if ((string) $key === 'salesAgreement') {
+			if ($keyName === 'salesagreement') {
+				$masked[$key] = '***';
+				continue;
+			}
+			if (in_array($keyName, array('authorization', 'access_token', 'refresh_token', 'client_secret', 'api_key', 'subscription_key', 'ocp-apim-subscription-key'), true)) {
 				$masked[$key] = '***';
 				continue;
 			}
@@ -702,6 +732,22 @@ class RexelApi
 	{
 		$json = json_encode($value);
 		return $json === false ? '[unavailable]' : $json;
+	}
+
+	/**
+	 * Truncate a log string to avoid oversized Dolibarr log lines.
+	 *
+	 * @param string $value Log value
+	 * @param int    $maxLength Maximum length
+	 * @return string
+	 */
+	private function truncateLogString($value, $maxLength = 2000)
+	{
+		if (strlen($value) <= $maxLength) {
+			return $value;
+		}
+
+		return substr($value, 0, $maxLength).'...';
 	}
 
 	/**
