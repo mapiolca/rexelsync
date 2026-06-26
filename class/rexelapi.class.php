@@ -12,7 +12,7 @@
  */
 class RexelApi
 {
-	const CLIENT_VERSION = '1.0.1';
+	const CLIENT_VERSION = '1.0.2';
 	const PRICE_PATH = '/external/productprices/productSalePrices';
 	const STOCK_PATH = '/external/stocks/positions';
 
@@ -307,23 +307,17 @@ class RexelApi
 			'supplierComRef' => (string) $supplierComRef,
 			'orderingQty' => $quantityAsString ? (string) $orderingQty : $orderingQty,
 		);
-		$payload = array(
-			'idNumVersion' => $numericScalarFields ? 1 : '1',
-			'idCustomer' => $numericScalarFields ? (int) $this->config['id_customer'] : (string) $this->config['id_customer'],
-			'productDetails' => $productDetailsAsArray ? array($productDetails) : $productDetails,
-		);
+		// TIBCO converts JSON to XML and validates element sequence, so keep the documented Rexel order.
+		$payload = array();
+		if (!empty($this->config['id_cod_origin'])) {
+			$payload['idCodOrigin'] = (string) $this->config['id_cod_origin'];
+		}
+		$payload['idNumVersion'] = $numericScalarFields ? 1 : '1';
+		$payload['idCustomer'] = $numericScalarFields ? (int) $this->config['id_customer'] : (string) $this->config['id_customer'];
+		$payload['productDetails'] = $productDetailsAsArray ? array($productDetails) : $productDetails;
 
 		if ($agenceCode !== '') {
 			$payload['agenceCode'] = $numericScalarFields ? (int) $agenceCode : $agenceCode;
-		}
-
-		foreach (array(
-			'idCodOrigin' => 'id_cod_origin',
-			'salesAgreement' => 'sales_agreement',
-		) as $apiField => $configField) {
-			if (!empty($this->config[$configField])) {
-				$payload[$apiField] = (string) $this->config[$configField];
-			}
 		}
 
 		if ($includeDeliveryFields) {
@@ -335,6 +329,9 @@ class RexelApi
 					$payload[$apiField] = (string) $this->config[$configField];
 				}
 			}
+		}
+		if (!empty($this->config['sales_agreement'])) {
+			$payload['salesAgreement'] = (string) $this->config['sales_agreement'];
 		}
 
 		return $payload;
