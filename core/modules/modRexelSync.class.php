@@ -35,7 +35,7 @@ class modRexelSync extends DolibarrModules
 		$this->descriptionlong = 'RexelSyncDescLong';
 		$this->editor_name = 'RexelSync';
 		$this->editor_url = '';
-		$this->version = '1.0.2';
+		$this->version = '1.0.3';
 		$this->const_name = 'MAIN_MODULE_'.strtoupper($this->name);
 		$this->picto = 'fa-sync';
 		$this->langfiles = array('rexelsync@rexelsync');
@@ -45,8 +45,8 @@ class modRexelSync extends DolibarrModules
 		$this->depends = array('modProduct', 'modFournisseur');
 		$this->requiredby = array();
 		$this->conflictwith = array();
-		$this->phpmin = array(7, 0);
-		$this->need_dolibarr_version = array(16, 0);
+		$this->phpmin = array(8, 0);
+		$this->need_dolibarr_version = array(20, 0);
 
 		$this->module_parts = array(
 			'hooks' => array('ordersuppliercard', 'supplier_proposalcard'),

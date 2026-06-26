@@ -15,3 +15,5 @@
 - Add debug logs for Rexel API endpoint, masked payload, header names, HTTP status, and masked error bodies without exposing secrets.
 - Add a Rexel API client version marker to request debug logs to detect incomplete deployments.
 - Keep Rexel price and stock payload fields in the documented order required by TIBCO JSON-to-XML validation.
+- Retry alternate Rexel reference candidates parsed from `ref_fourn` when an explicit product reference is not found by Rexel.
+- Align the module descriptor compatibility floor with Dolibarr v20+ and PHP 8.0+.

@@ -19,6 +19,8 @@ For v1, Rexel references are parsed with this priority:
 
 Examples: `3M_85851` becomes `supplierCode = 3M` and `supplierComRef = 85851`; `SCHAPCRBCV202` becomes `supplierCode = SCH` and `supplierComRef = APCRBCV202`.
 
+When an explicit product reference returns a Rexel business `not found` response, RexelSync retries alternate candidates parsed from the supplier reference. This covers cases where the Dolibarr product reference contains a brand code but the Rexel manufacturer word is stored in `ref_fourn`, for example `3M_85851` with supplier reference `TRM85851`.
+
 ## Rexel API Scope
 
 This version targets the Rexel Discovery API endpoints:

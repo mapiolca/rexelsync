@@ -312,7 +312,8 @@ class RexelSync
 		}
 
 		while ($obj = $this->db->fetch_object($resql)) {
-			$parsed = self::parseSupplierReference($obj->ref_fourn, $obj->ref_product);
+			$candidates = self::parseSupplierReferenceCandidates($obj->ref_fourn, $obj->ref_product);
+			$parsed = !empty($candidates[0]) ? $candidates[0] : self::parseSupplierReference($obj->ref_fourn, $obj->ref_product);
 			$rows[] = array(
 				'price_line_id' => (int) $obj->price_line_id,
 				'fk_product' => (int) $obj->fk_product,
@@ -321,6 +322,7 @@ class RexelSync
 				'ref_fourn' => $obj->ref_fourn,
 				'supplier_code' => $parsed['supplier_code'],
 				'supplier_com_ref' => $parsed['supplier_com_ref'],
+				'reference_candidates' => $candidates,
 				'price' => ($obj->price !== null ? (float) $obj->price : null),
 				'unitprice' => ($obj->unitprice !== null ? (float) $obj->unitprice : null),
 				'quantity' => ($obj->quantity !== null ? (float) $obj->quantity : 1),
@@ -410,33 +412,53 @@ class RexelSync
 	 */
 	public static function parseSupplierReference($ref, $productRef = '')
 	{
+		$candidates = self::parseSupplierReferenceCandidates($ref, $productRef);
+		if (empty($candidates[0])) {
+			return array('valid' => false, 'supplier_code' => '', 'supplier_com_ref' => '', 'source' => '');
+		}
+
+		return $candidates[0];
+	}
+
+	/**
+	 * Return possible Rexel references, from most explicit to fallback.
+	 *
+	 * @param string $ref Supplier ref
+	 * @param string $productRef Product ref
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function parseSupplierReferenceCandidates($ref, $productRef = '')
+	{
 		$ref = trim((string) $ref);
 		$productRef = trim((string) $productRef);
+		$candidates = array();
 
 		$parsedProductRef = self::parseSeparatedSupplierReference($productRef, 'ref_product');
 		if (!empty($parsedProductRef['valid'])) {
-			return $parsedProductRef;
+			$candidates[] = $parsedProductRef;
 		}
 
 		$parsedSupplierRef = self::parseSeparatedSupplierReference($ref, 'ref_fourn');
 		if (!empty($parsedSupplierRef['valid'])) {
-			return $parsedSupplierRef;
+			$candidates = self::appendUniqueReferenceCandidate($candidates, $parsedSupplierRef);
 		}
 
-		if (strlen($ref) <= 3) {
-			return array('valid' => false, 'supplier_code' => '', 'supplier_com_ref' => '', 'source' => '');
+		if (strlen($ref) > 3) {
+			$supplierCode = strtoupper(substr($ref, 0, 3));
+			$supplierComRef = trim(substr($ref, 3));
+			$supplierComRef = ltrim($supplierComRef, " \t\n\r\0\x0B-_/");
+			$fallback = array(
+				'valid' => ($supplierCode !== '' && $supplierComRef !== ''),
+				'supplier_code' => $supplierCode,
+				'supplier_com_ref' => $supplierComRef,
+				'source' => 'ref_fourn',
+			);
+			if (!empty($fallback['valid'])) {
+				$candidates = self::appendUniqueReferenceCandidate($candidates, $fallback);
+			}
 		}
 
-		$supplierCode = strtoupper(substr($ref, 0, 3));
-		$supplierComRef = trim(substr($ref, 3));
-		$supplierComRef = ltrim($supplierComRef, " \t\n\r\0\x0B-_/");
-
-		return array(
-			'valid' => ($supplierCode !== '' && $supplierComRef !== ''),
-			'supplier_code' => $supplierCode,
-			'supplier_com_ref' => $supplierComRef,
-			'source' => 'ref_fourn',
-		);
+		return $candidates;
 	}
 
 	/**
@@ -470,6 +492,33 @@ class RexelSync
 	}
 
 	/**
+	 * Append a candidate only when its code/reference pair is not already listed.
+	 *
+	 * @param array<int,array<string,mixed>> $candidates Candidates
+	 * @param array<string,mixed>            $candidate Candidate
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function appendUniqueReferenceCandidate(array $candidates, array $candidate)
+	{
+		if (!isset($candidate['supplier_code'], $candidate['supplier_com_ref'])) {
+			return $candidates;
+		}
+
+		foreach ($candidates as $existing) {
+			if (!isset($existing['supplier_code'], $existing['supplier_com_ref'])) {
+				continue;
+			}
+			if ((string) $existing['supplier_code'] === (string) $candidate['supplier_code']
+				&& (string) $existing['supplier_com_ref'] === (string) $candidate['supplier_com_ref']) {
+				return $candidates;
+			}
+		}
+
+		$candidates[] = $candidate;
+		return $candidates;
+	}
+
+	/**
 	 * Sync one row.
 	 *
 	 * @param array<string,mixed> $row Supplier price row
@@ -489,6 +538,9 @@ class RexelSync
 
 		$qty = (int) ceil(!empty($row['quantity']) && $row['quantity'] > 0 ? $row['quantity'] : $config['default_qty']);
 		$apiResult = $api->fetchProductPriceAndStock($parsed['supplier_code'], $parsed['supplier_com_ref'], $qty);
+		if (empty($apiResult['success']) && !empty($apiResult['status']) && $apiResult['status'] === self::STATUS_NOT_FOUND && !empty($row['reference_candidates']) && is_array($row['reference_candidates'])) {
+			$apiResult = $this->retryReferenceCandidatesAfterNotFound($row, $api, $qty, $apiResult);
+		}
 		if (empty($apiResult['success'])) {
 			$status = !empty($apiResult['status']) ? $apiResult['status'] : self::STATUS_ERROR;
 			if ($status !== self::STATUS_NOT_FOUND) {
@@ -534,6 +586,62 @@ class RexelSync
 
 		$this->logSync($row, $oldPrice, $newPrice, $oldStock, $newStock, $status, '', $apiResult['http_status']);
 		return array('success' => true, 'status' => $status, 'message' => '');
+	}
+
+	/**
+	 * Retry alternate parsed references when the first Rexel reference is not found.
+	 *
+	 * @param array<string,mixed> $row Supplier price row
+	 * @param RexelApi            $api API client
+	 * @param int                 $qty Ordered quantity
+	 * @param array<string,mixed> $firstResult First API result
+	 * @return array<string,mixed>
+	 */
+	private function retryReferenceCandidatesAfterNotFound(array $row, RexelApi $api, $qty, array $firstResult)
+	{
+		$candidates = $row['reference_candidates'];
+		if (!is_array($candidates)) {
+			return $firstResult;
+		}
+
+		$firstCode = !empty($row['supplier_code']) ? (string) $row['supplier_code'] : '';
+		$firstRef = !empty($row['supplier_com_ref']) ? (string) $row['supplier_com_ref'] : '';
+
+		foreach ($candidates as $candidate) {
+			if (!is_array($candidate)) {
+				continue;
+			}
+			if (empty($candidate['valid']) || empty($candidate['supplier_code']) || empty($candidate['supplier_com_ref'])) {
+				continue;
+			}
+			if ((string) $candidate['supplier_code'] === $firstCode && (string) $candidate['supplier_com_ref'] === $firstRef) {
+				continue;
+			}
+			$source = !empty($candidate['source']) ? (string) $candidate['source'] : 'unknown';
+			$this->debugLog('RexelSync retry product not found with reference source='.$source);
+			$result = $api->fetchProductPriceAndStock((string) $candidate['supplier_code'], (string) $candidate['supplier_com_ref'], $qty);
+			if (!empty($result['success'])) {
+				return $result;
+			}
+			if (empty($result['status']) || $result['status'] !== self::STATUS_NOT_FOUND) {
+				return $result;
+			}
+		}
+
+		return $firstResult;
+	}
+
+	/**
+	 * Write a debug log entry when Dolibarr logging is available.
+	 *
+	 * @param string $message Message
+	 * @return void
+	 */
+	private function debugLog($message)
+	{
+		if (function_exists('dol_syslog')) {
+			dol_syslog($message, defined('LOG_DEBUG') ? LOG_DEBUG : 7);
+		}
 	}
 
 	/**
