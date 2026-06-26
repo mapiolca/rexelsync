@@ -22,3 +22,5 @@
 - Set the default interactive synchronization batch size to 50 rows while keeping the server maximum at 250.
 - Add sortable and filterable synchronization-list columns, including a multiselect status filter and latest-log based state/date sorting.
 - Move the synchronization row count into the Synchronization tab badge and remove the old supplier-count summary line.
+- Display known Rexel API and RexelSync error messages translated in the synchronization and log lists.
+- Replace the module pictogram with a local stylized RexelSync SVG icon.

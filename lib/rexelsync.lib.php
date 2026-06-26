@@ -88,6 +88,106 @@ function rexelsyncStatusBadge($status)
 }
 
 /**
+ * Translate known RexelSync or Rexel API messages for display.
+ *
+ * @param string $message Raw message
+ * @return string
+ */
+function rexelsyncTranslateMessage($message)
+{
+	global $langs;
+
+	$message = trim((string) $message);
+	if ($message === '') {
+		return '';
+	}
+
+	if (preg_match('/^([0-9A-Z_-]+)\s*-\s*The product with the reference\s*:\s*(.+?)\s+and supplier code\s*:\s*(.+?)\s+was either prohibited or unavailable for sale\.?$/i', $message, $matches)) {
+		return $langs->trans('RexelSyncApiErrorProductUnavailable', $matches[1], $matches[2], $matches[3]);
+	}
+	if (preg_match('/^The product with the reference\s*:\s*(.+?)\s+and supplier code\s*:\s*(.+?)\s+was either prohibited or unavailable for sale\.?$/i', $message, $matches)) {
+		return $langs->trans('RexelSyncApiErrorProductUnavailableNoCode', $matches[1], $matches[2]);
+	}
+	if (preg_match('/^BW-RESTJSON-100016\b/i', $message)) {
+		return $langs->trans('RexelSyncApiErrorRestJsonSchema', $message);
+	}
+	if (preg_match('/^Configuration RexelSync incomplete: (.+)$/', $message, $matches)) {
+		return $langs->trans('RexelSyncErrorConfigurationIncomplete', $matches[1]);
+	}
+	if (preg_match('/^Reference fournisseur invalide: (.+?) \(format attendu: 3 caracteres fabricant puis reference commerciale\)$/', $message, $matches)) {
+		return $langs->trans('RexelSyncErrorInvalidSupplierRef', $matches[1]);
+	}
+	if (preg_match('/^Ligne de prix fournisseur introuvable: ([0-9]+)$/', $message, $matches)) {
+		return $langs->trans('RexelSyncErrorSupplierPriceLineMissingWithId', $matches[1]);
+	}
+	if ($message === 'Aucune ligne de prix fournisseur Rexel a synchroniser.') {
+		return $langs->trans('RexelSyncErrorNoSupplierRows');
+	}
+	if ($message === 'Ligne de prix fournisseur introuvable ou hors fournisseur Rexel') {
+		return $langs->trans('RexelSyncErrorSupplierPriceLineMissing');
+	}
+	if ($message === 'Echec mise a jour prix fournisseur Dolibarr') {
+		return $langs->trans('RexelSyncErrorPriceUpdateFailed');
+	}
+	if ($message === 'Echec mise a jour stock fournisseur Dolibarr') {
+		return $langs->trans('RexelSyncErrorStockUpdateFailed');
+	}
+	if ($message === 'Produit non retourne par l API prix Rexel') {
+		return $langs->trans('RexelSyncErrorPriceApiProductMissing');
+	}
+	if ($message === 'Produit non retourne par l API stock Rexel') {
+		return $langs->trans('RexelSyncErrorStockApiProductMissing');
+	}
+	if ($message === 'Prix net client introuvable dans la reponse Rexel') {
+		return $langs->trans('RexelSyncErrorNetPriceMissing');
+	}
+	if ($message === 'Stocks Rexel introuvables dans la reponse') {
+		return $langs->trans('RexelSyncErrorStockMissing');
+	}
+	if ($message === 'Numero client Rexel invalide: idCustomer doit etre numerique') {
+		return $langs->trans('RexelSyncErrorCustomerIdInvalid');
+	}
+	if ($message === 'Configuration OAuth2 Rexel incomplete') {
+		return $langs->trans('RexelSyncErrorOAuth2ConfigurationIncomplete');
+	}
+	if ($message === 'Jeton bearer Rexel manquant') {
+		return $langs->trans('RexelSyncErrorBearerTokenMissing');
+	}
+	if ($message === 'Cle de souscription Rexel manquante') {
+		return $langs->trans('RexelSyncErrorSubscriptionKeyMissing');
+	}
+	if ($message === 'Nom d en-tete de souscription Rexel invalide') {
+		return $langs->trans('RexelSyncErrorSubscriptionHeaderInvalid');
+	}
+	if (preg_match('/^Mode authentification Rexel inconnu: (.+)$/', $message, $matches)) {
+		return $langs->trans('RexelSyncErrorUnknownAuthMode', $matches[1]);
+	}
+	if (preg_match('/^Payload Rexel non JSON: (.+)$/', $message, $matches)) {
+		return $langs->trans('RexelSyncErrorPayloadJson', $matches[1]);
+	}
+	if (preg_match('/^Reponse Rexel non JSON: (.+)$/', $message, $matches)) {
+		return $langs->trans('RexelSyncErrorResponseJson', $matches[1]);
+	}
+	if (preg_match('/^Erreur cURL Rexel: (.+)$/', $message, $matches)) {
+		return $langs->trans('RexelSyncErrorCurl', $matches[1]);
+	}
+	if (preg_match('/^Erreur cURL token Rexel: (.+)$/', $message, $matches)) {
+		return $langs->trans('RexelSyncErrorCurlToken', $matches[1]);
+	}
+	if (preg_match('/^Erreur HTTP Rexel ([0-9]+)$/', $message, $matches)) {
+		return $langs->trans('RexelSyncErrorHttp', $matches[1]);
+	}
+	if ($message === 'Extension PHP cURL indisponible') {
+		return $langs->trans('RexelSyncErrorCurlExtensionMissing');
+	}
+	if ($message === 'Impossible de recuperer le token Rexel OAuth2') {
+		return $langs->trans('RexelSyncErrorOAuth2Token');
+	}
+
+	return $message;
+}
+
+/**
  * Return escaped current page URL.
  *
  * @return string

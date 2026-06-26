@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 64" role="img" aria-label="Rexel Sync">
+	<defs>
+		<linearGradient id="rexelsync-blue" x1="14" y1="18" x2="78" y2="45" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#003f8f"/>
+			<stop offset="1" stop-color="#0072ce"/>
+		</linearGradient>
+		<linearGradient id="rexelsync-red" x1="22" y1="10" x2="84" y2="54" gradientUnits="userSpaceOnUse">
+			<stop offset="0" stop-color="#e1251b"/>
+			<stop offset="1" stop-color="#b5121b"/>
+		</linearGradient>
+	</defs>
+	<rect x="5" y="12" width="86" height="40" rx="10" fill="#fff"/>
+	<path d="M22 22h20c6 0 10 3 10 8 0 4-2 7-6 8l8 9h-9l-7-8h-8v8h-8V22Zm8 6v5h11c2 0 3-1 3-3s-1-2-3-2H30Z" fill="url(#rexelsync-blue)"/>
+	<path d="M55 22h28v6H63v4h17v6H63v4h20v6H55V22Z" fill="url(#rexelsync-blue)"/>
+	<path d="M14 33c0-13 11-23 25-23 9 0 16 4 21 10" fill="none" stroke="url(#rexelsync-red)" stroke-width="5" stroke-linecap="round"/>
+	<path d="M61 20h-12l7-9 5 9Z" fill="#e1251b"/>
+	<path d="M82 31c0 13-11 23-25 23-9 0-17-4-22-11" fill="none" stroke="url(#rexelsync-red)" stroke-width="5" stroke-linecap="round"/>
+	<path d="M35 43h12l-7 9-5-9Z" fill="#b5121b"/>
+</svg>

@@ -118,7 +118,7 @@ $linkback = '<a href="'.DOL_URL_ROOT.'/admin/modules.php?restore_lastsearch_valu
 print load_fiche_titre($title, $linkback, 'title_setup');
 
 $head = rexelsyncAdminPrepareHead();
-print dol_get_fiche_head($head, 'settings', $title, -1, 'fa-sync');
+print dol_get_fiche_head($head, 'settings', $title, -1, 'rexelsync@rexelsync');
 
 $supplierOptions = rexelsyncGetSupplierOptions($db);
 $currentSupplierId = getDolGlobalInt('REXELSYNC_SUPPLIER_ID');

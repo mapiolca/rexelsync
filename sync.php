@@ -212,7 +212,7 @@ if ($action === 'syncone') {
 	if (!empty($result['success'])) {
 		setEventMessages($langs->trans('RexelSyncOneSuccess'), null, 'mesgs');
 	} else {
-		setEventMessages(!empty($result['message']) ? $result['message'] : $sync->error, null, 'errors');
+		setEventMessages(rexelsyncTranslateMessage(!empty($result['message']) ? $result['message'] : $sync->error), null, 'errors');
 	}
 	header('Location: '.$listContextUrl);
 	exit;
@@ -263,7 +263,7 @@ print '<button type="button" class="button" id="rexelsync-batch-close" disabled=
 print '</div>';
 print '</div>';
 
-print_barre_liste($title, $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'fa-sync', 0, $syncAllButton, '', $limit);
+print_barre_liste($title, $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'rexelsync@rexelsync', 0, $syncAllButton, '', $limit);
 
 print '<form method="GET" action="'.$_SERVER['PHP_SELF'].'">';
 print '<input type="hidden" name="sortfield" value="'.dol_escape_htmltag($sortfield).'">';
@@ -344,7 +344,7 @@ foreach ($rows as $row) {
 	if ($log) {
 		print rexelsyncStatusBadge($log['status']);
 		if (!empty($log['message'])) {
-			print '<br><span class="small opacitymedium">'.dol_escape_htmltag(dol_trunc($log['message'], 80)).'</span>';
+			print '<br><span class="small opacitymedium">'.dol_escape_htmltag(dol_trunc(rexelsyncTranslateMessage($log['message']), 80)).'</span>';
 		}
 	} else {
 		print rexelsyncStatusBadge(RexelSync::STATUS_NEVER_SYNCED);

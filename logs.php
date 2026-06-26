@@ -195,7 +195,7 @@ if ($resql) {
 		print '<td class="right">'.rexelsyncFormatEvolution($obj->old_stock, $obj->new_stock, $stockDiff, false).'</td>';
 		print '<td class="center">'.($obj->http_status !== null ? (int) $obj->http_status : '').'</td>';
 		print '<td class="center">'.rexelsyncStatusBadge($obj->status).'</td>';
-		print '<td><span class="small">'.dol_escape_htmltag(dol_trunc($obj->message, 160)).'</span></td>';
+		print '<td><span class="small">'.dol_escape_htmltag(dol_trunc(rexelsyncTranslateMessage($obj->message), 160)).'</span></td>';
 		print '</tr>';
 	}
 }
