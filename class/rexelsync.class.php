@@ -20,6 +20,8 @@ class RexelSync
 	const STATUS_ERROR = 'error';
 	const STATUS_NOT_FOUND = 'not_found';
 	const STATUS_INVALID_REF = 'invalid_ref';
+	const DEFAULT_BATCH_SIZE = 250;
+	const MAX_BATCH_SIZE = 250;
 
 	/** @var DoliDB */
 	public $db;
@@ -71,6 +73,49 @@ class RexelSync
 	 */
 	public function runSync($limit = 0, $offset = 0)
 	{
+		return $this->runSyncRows((int) $limit, (int) $offset, 'p.ref', 'ASC');
+	}
+
+	/**
+	 * Run one bounded synchronization batch.
+	 *
+	 * @param int $limit Requested batch size
+	 * @param int $offset Offset
+	 * @return array<string,mixed>
+	 */
+	public function runSyncBatch($limit, $offset = 0)
+	{
+		$limit = self::normalizeBatchSize($limit);
+		return $this->runSyncRows($limit, max(0, (int) $offset), 'pfp.rowid', 'ASC');
+	}
+
+	/**
+	 * Normalize a configured batch size.
+	 *
+	 * @param int $batchSize Configured batch size
+	 * @return int
+	 */
+	public static function normalizeBatchSize($batchSize)
+	{
+		$batchSize = (int) $batchSize;
+		if ($batchSize <= 0) {
+			return self::DEFAULT_BATCH_SIZE;
+		}
+
+		return min(self::MAX_BATCH_SIZE, max(1, $batchSize));
+	}
+
+	/**
+	 * Run synchronization rows with a stable ordering.
+	 *
+	 * @param int    $limit Limit
+	 * @param int    $offset Offset
+	 * @param string $sortfield Sort field
+	 * @param string $sortorder Sort order
+	 * @return array<string,mixed>
+	 */
+	private function runSyncRows($limit = 0, $offset = 0, $sortfield = 'p.ref', $sortorder = 'ASC')
+	{
 		global $user;
 
 		$stats = $this->emptyStats();
@@ -83,13 +128,29 @@ class RexelSync
 			return $stats;
 		}
 
-		$rows = $this->getSupplierPriceRows($limit, $offset);
+		$rows = $this->getSupplierPriceRows($limit, $offset, array(), $sortfield, $sortorder);
 		$stats['total'] = count($rows);
 		if (empty($rows)) {
 			$stats['message'] = 'Aucune ligne de prix fournisseur Rexel a synchroniser.';
 			return $stats;
 		}
 
+		$stats = $this->processRows($rows, $config, $user, $stats);
+		$stats['message'] = $this->buildStatsOutput($stats);
+		return $stats;
+	}
+
+	/**
+	 * Process selected synchronization rows.
+	 *
+	 * @param array<int,array<string,mixed>> $rows Rows
+	 * @param array<string,mixed>            $config Config
+	 * @param User                          $user User
+	 * @param array<string,mixed>           $stats Stats
+	 * @return array<string,mixed>
+	 */
+	private function processRows(array $rows, array $config, $user, array $stats)
+	{
 		$api = new RexelApi($config);
 		$delayMs = max(0, (int) $config['delay_ms']);
 		foreach ($rows as $row) {
@@ -107,7 +168,6 @@ class RexelSync
 			}
 		}
 
-		$stats['message'] = $this->buildStatsOutput($stats);
 		return $stats;
 	}
 
@@ -168,7 +228,7 @@ class RexelSync
 			'zip_code' => getDolGlobalString('REXELSYNC_ZIP_CODE'),
 			'city' => getDolGlobalString('REXELSYNC_CITY'),
 			'sales_agreement' => getDolGlobalString('REXELSYNC_SALES_AGREEMENT'),
-			'batch_size' => getDolGlobalInt('REXELSYNC_BATCH_SIZE') ?: 0,
+			'batch_size' => self::normalizeBatchSize(getDolGlobalInt('REXELSYNC_BATCH_SIZE') ?: 0),
 			'delay_ms' => getDolGlobalInt('REXELSYNC_DELAY_MS') ?: 0,
 			'default_qty' => getDolGlobalInt('REXELSYNC_DEFAULT_QTY') ?: 1,
 		);
@@ -280,6 +340,7 @@ class RexelSync
 			'p.ref' => 'p.ref',
 			'p.label' => 'p.label',
 			'pfp.ref_fourn' => 'pfp.ref_fourn',
+			'pfp.rowid' => 'pfp.rowid',
 			'pfp.unitprice' => 'pfp.unitprice',
 			'ef.supplier_stock' => 'ef.supplier_stock',
 		);

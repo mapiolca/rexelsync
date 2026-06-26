@@ -38,8 +38,12 @@ The purchase price is updated from `clientNetPrice`. Supplier stock is stored in
 ## Dolibarr Features
 
 - Setup page with Rexel API settings and supplier association.
-- Manual sync page with one-line and all-line synchronization actions.
+- Manual sync page with one-line synchronization and all-line AJAX batch synchronization with progress.
 - Log page with price and stock evolution.
 - Daily disabled cron job for automated synchronization.
 - Supplier purchase price extrafield `supplier_stock`.
 - Hook display on Rexel supplier proposal and supplier order lines.
+
+## Batch Synchronization
+
+The all-line synchronization button runs the Rexel supplier rows in AJAX batches to avoid long PHP requests. It always targets all Rexel supplier price rows, regardless of the filters currently visible in the list. The `REXELSYNC_BATCH_SIZE` setting controls the batch size; `0` uses the default of 250 rows and the server enforces a maximum of 250.

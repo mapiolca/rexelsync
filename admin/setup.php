@@ -89,7 +89,7 @@ if ($action === 'update') {
 	dolibarr_set_const($db, 'REXELSYNC_ZIP_CODE', trim(GETPOST('REXELSYNC_ZIP_CODE', 'alphanohtml')), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_CITY', trim(GETPOST('REXELSYNC_CITY', 'restricthtml')), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_SALES_AGREEMENT', trim(GETPOST('REXELSYNC_SALES_AGREEMENT', 'alphanohtml')), 'chaine', 0, '', $conf->entity);
-	dolibarr_set_const($db, 'REXELSYNC_BATCH_SIZE', (string) max(0, GETPOST('REXELSYNC_BATCH_SIZE', 'int')), 'chaine', 0, '', $conf->entity);
+	dolibarr_set_const($db, 'REXELSYNC_BATCH_SIZE', (string) min(250, max(0, GETPOST('REXELSYNC_BATCH_SIZE', 'int'))), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_DELAY_MS', (string) max(0, GETPOST('REXELSYNC_DELAY_MS', 'int')), 'chaine', 0, '', $conf->entity);
 	dolibarr_set_const($db, 'REXELSYNC_DEFAULT_QTY', (string) max(1, GETPOST('REXELSYNC_DEFAULT_QTY', 'int')), 'chaine', 0, '', $conf->entity);
 
@@ -169,7 +169,7 @@ print rexelsyncInputRow('RexelSyncAgenceCode', 'REXELSYNC_AGENCE_CODE', getDolGl
 print rexelsyncInputRow('RexelSyncZipCode', 'REXELSYNC_ZIP_CODE', getDolGlobalString('REXELSYNC_ZIP_CODE'), 'text', 'RexelSyncZipCodeHelp', false);
 print rexelsyncInputRow('RexelSyncCity', 'REXELSYNC_CITY', getDolGlobalString('REXELSYNC_CITY'), 'text', 'RexelSyncCityHelp', false);
 print rexelsyncInputRow('RexelSyncSalesAgreement', 'REXELSYNC_SALES_AGREEMENT', getDolGlobalString('REXELSYNC_SALES_AGREEMENT'), 'text', 'RexelSyncSalesAgreementHelp', false);
-print rexelsyncInputRow('RexelSyncBatchSize', 'REXELSYNC_BATCH_SIZE', (string) (getDolGlobalInt('REXELSYNC_BATCH_SIZE') ?: 0), 'number', 'RexelSyncBatchSizeHelp', false, ' min="0" step="1"');
+print rexelsyncInputRow('RexelSyncBatchSize', 'REXELSYNC_BATCH_SIZE', (string) (getDolGlobalInt('REXELSYNC_BATCH_SIZE') ?: 0), 'number', 'RexelSyncBatchSizeHelp', false, ' min="0" max="250" step="1"');
 print rexelsyncInputRow('RexelSyncDelayMs', 'REXELSYNC_DELAY_MS', (string) (getDolGlobalInt('REXELSYNC_DELAY_MS') ?: 0), 'number', 'RexelSyncDelayMsHelp', false, ' min="0" step="100"');
 print rexelsyncInputRow('RexelSyncDefaultQty', 'REXELSYNC_DEFAULT_QTY', (string) (getDolGlobalInt('REXELSYNC_DEFAULT_QTY') ?: 1), 'number', 'RexelSyncDefaultQtyHelp', false, ' min="1" step="1"');
 print '</table>';

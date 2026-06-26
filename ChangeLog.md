@@ -17,3 +17,5 @@
 - Keep Rexel price and stock payload fields in the documented order required by TIBCO JSON-to-XML validation.
 - Keep alternate Rexel reference candidates parsed only from `ref_fourn`, from explicit separator format to the three-character supplier-code fallback.
 - Align the module descriptor compatibility floor with Dolibarr v20+ and PHP 8.0+.
+- Replace full-page all-product synchronization with capped AJAX batches and a progress dialog to avoid long PHP requests.
+- Preserve sync list sorting, pagination, limit, and filters after one-line synchronization.
