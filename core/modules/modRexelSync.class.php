@@ -50,6 +50,7 @@ class modRexelSync extends DolibarrModules
 
 		$this->module_parts = array(
 			'hooks' => array('ordersuppliercard', 'supplier_proposalcard'),
+			'css' => array('/rexelsync/css/rexelsync.css'),
 		);
 
 		$this->const = array();

@@ -24,3 +24,4 @@
 - Move the synchronization row count into the Synchronization tab badge and remove the old supplier-count summary line.
 - Display known Rexel API and RexelSync error messages translated in the synchronization and log lists.
 - Replace the module pictogram with a local stylized RexelSync SVG icon.
+- Scope RexelSync pagination colors to Dolibarr native pagination colors.

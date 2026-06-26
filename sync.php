@@ -235,6 +235,7 @@ $param = rexelsyncBuildListFilterParam($filters);
 
 $title = $langs->trans('RexelSyncSync');
 llxHeader('', $title);
+print '<div class="rexelsync-page">';
 
 if (!empty($missing)) {
 	print '<div class="warning">';
@@ -402,6 +403,8 @@ if ($user->hasRight('rexelsync', 'sync', 'write') && empty($missing)) {
 	print '});';
 	print '</script>';
 }
+
+print '</div>';
 
 llxFooter();
 $db->close();

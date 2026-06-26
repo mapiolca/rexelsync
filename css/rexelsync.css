@@ -1,0 +1,11 @@
+.rexelsync-page div.pagination li.pagination a,
+.rexelsync-page div.pagination li.pagination span,
+.rexelsync-page div.pagination li.paginationafterarrows a,
+.rexelsync-page div.pagination li.paginationbeforearrows a {
+	color: var(--color-black, #000) !important;
+}
+
+.rexelsync-page div.pagination li.paginationafterarrows a:hover,
+.rexelsync-page div.pagination li.paginationbeforearrows a:hover {
+	color: var(--color-black, #000) !important;
+}

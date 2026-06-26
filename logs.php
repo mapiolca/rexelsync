@@ -138,6 +138,7 @@ $statusOptions = array(
 
 $title = $langs->trans('RexelSyncLogs');
 llxHeader('', $title);
+print '<div class="rexelsync-page">';
 
 print_barre_liste($title, $page, $_SERVER['PHP_SELF'], $param, $sortfield, $sortorder, '', $totalRows, $totalRows, 'fa-list', 0, '', '', $limit);
 
@@ -203,6 +204,8 @@ if ($resql) {
 print '</table>';
 print '</div>';
 print '</form>';
+
+print '</div>';
 
 llxFooter();
 $db->close();
