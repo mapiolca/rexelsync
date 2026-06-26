@@ -156,11 +156,12 @@ class RexelSync
 			'base_url' => getDolGlobalString('REXELSYNC_BASE_URL') ?: 'https://api.rexel.fr',
 			'auth_mode' => $authMode,
 			'bearer_token' => dol_decode(getDolGlobalString('REXELSYNC_BEARER_TOKEN')),
-			'api_key_header' => getDolGlobalString('REXELSYNC_API_KEY_HEADER') ?: 'x-api-key',
+			'api_key_header' => getDolGlobalString('REXELSYNC_API_KEY_HEADER') ?: 'Ocp-Apim-Subscription-Key',
 			'api_key' => dol_decode(getDolGlobalString('REXELSYNC_API_KEY')),
 			'client_id' => getDolGlobalString('REXELSYNC_CLIENT_ID'),
 			'client_secret' => dol_decode(getDolGlobalString('REXELSYNC_CLIENT_SECRET')),
 			'token_url' => getDolGlobalString('REXELSYNC_TOKEN_URL'),
+			'token_resource' => getDolGlobalString('REXELSYNC_TOKEN_RESOURCE'),
 			'token_scope' => getDolGlobalString('REXELSYNC_TOKEN_SCOPE'),
 			'id_cod_origin' => getDolGlobalString('REXELSYNC_ID_COD_ORIGIN'),
 			'agence_code' => getDolGlobalString('REXELSYNC_AGENCE_CODE'),
@@ -191,17 +192,25 @@ class RexelSync
 		if (empty($config['base_url'])) {
 			$missing[] = 'URL API Rexel';
 		}
+		if (empty($config['agence_code'])) {
+			$missing[] = 'code agence Rexel';
+		} elseif (!preg_match('/^[0-9]+$/', (string) $config['agence_code'])) {
+			$missing[] = 'code agence Rexel numerique';
+		}
 		if ($config['auth_mode'] === 'bearer' && empty($config['bearer_token'])) {
 			$missing[] = 'jeton bearer';
 		}
-		if ($config['auth_mode'] === 'apikey' && empty($config['api_key'])) {
-			$missing[] = 'cle API';
+		if (in_array($config['auth_mode'], array('bearer', 'apikey', 'oauth2'), true) && empty($config['api_key'])) {
+			$missing[] = 'cle de souscription Rexel';
 		}
 		if ($config['auth_mode'] === 'oauth2') {
 			foreach (array('token_url' => 'URL token OAuth2', 'client_id' => 'client id', 'client_secret' => 'client secret') as $key => $label) {
 				if (empty($config[$key])) {
 					$missing[] = $label;
 				}
+			}
+			if (empty($config['token_resource']) && empty($config['token_scope'])) {
+				$missing[] = 'ressource ou scope OAuth2';
 			}
 		}
 

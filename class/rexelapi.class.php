@@ -76,8 +76,13 @@ class RexelApi
 	 */
 	public function fetchPrice($supplierCode, $supplierComRef, $qty)
 	{
+		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty);
+		if ($commonPayload === false) {
+			return $this->buildClientError($this->error);
+		}
+
 		$payload = array(
-			'getProductSalePricesExt' => $this->buildCommonPayload($supplierCode, $supplierComRef, $qty),
+			'getProductSalePricesExt' => $commonPayload,
 		);
 
 		$response = $this->postJson(self::PRICE_PATH, $payload);
@@ -136,8 +141,13 @@ class RexelApi
 	 */
 	public function fetchStock($supplierCode, $supplierComRef, $qty)
 	{
+		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty);
+		if ($commonPayload === false) {
+			return $this->buildClientError($this->error);
+		}
+
 		$payload = array(
-			'getPositionsExtRequest' => $this->buildCommonPayload($supplierCode, $supplierComRef, $qty),
+			'getPositionsExtRequest' => $commonPayload,
 		);
 
 		$response = $this->postJson(self::STOCK_PATH, $payload);
@@ -201,25 +211,30 @@ class RexelApi
 	 * @param string $supplierCode Supplier code
 	 * @param string $supplierComRef Supplier commercial reference
 	 * @param int    $qty Ordered quantity
-	 * @return array<string,mixed>
+	 * @return array<string,mixed>|false
 	 */
 	private function buildCommonPayload($supplierCode, $supplierComRef, $qty)
 	{
+		$agenceCode = $this->getRequiredNumericConfig('agence_code', 'Code agence Rexel manquant ou invalide');
+		if ($agenceCode === false) {
+			return false;
+		}
+
 		$payload = array(
 			'idNumVersion' => '1',
 			'idCustomer' => (string) $this->config['id_customer'],
 			'productDetails' => array(
 				array(
-					'supplierCode' => $supplierCode,
-					'supplierComRef' => $supplierComRef,
-					'orderingQty' => max(1, (int) $qty),
+					'supplierCode' => (string) $supplierCode,
+					'supplierComRef' => (string) $supplierComRef,
+					'orderingQty' => (string) max(1, (int) $qty),
 				),
 			),
+			'agenceCode' => $agenceCode,
 		);
 
 		foreach (array(
 			'idCodOrigin' => 'id_cod_origin',
-			'agenceCode' => 'agence_code',
 			'zipCode' => 'zip_code',
 			'city' => 'city',
 			'salesAgreement' => 'sales_agreement',
@@ -253,10 +268,17 @@ class RexelApi
 		}
 		$headers = array_merge($headers, $authHeaders);
 
+		$jsonPayload = json_encode($payload);
+		if ($jsonPayload === false) {
+			return array('success' => false, 'http_status' => 0, 'message' => 'Payload Rexel non JSON: '.json_last_error_msg(), 'data' => null);
+		}
+
+		$this->debugLog('RexelSync API request path='.$path.' headers='.implode(',', $this->getHeaderNames($headers)).' payload='.$this->jsonForLog($this->maskPayloadForLog($payload)));
+
 		$ch = curl_init($url);
 		curl_setopt_array($ch, array(
 			CURLOPT_POST => true,
-			CURLOPT_POSTFIELDS => json_encode($payload),
+			CURLOPT_POSTFIELDS => $jsonPayload,
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_CONNECTTIMEOUT => 15,
 			CURLOPT_TIMEOUT => 60,
@@ -267,6 +289,8 @@ class RexelApi
 		$curlError = curl_error($ch);
 		$httpStatus = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
 		curl_close($ch);
+
+		$this->debugLog('RexelSync API response path='.$path.' http_status='.$httpStatus);
 
 		if ($raw === false) {
 			return array('success' => false, 'http_status' => $httpStatus, 'message' => 'Erreur cURL Rexel: '.$curlError, 'data' => null);
@@ -305,22 +329,25 @@ class RexelApi
 				$this->error = 'Jeton bearer Rexel manquant';
 				return false;
 			}
-			return array('Authorization: Bearer '.$this->config['bearer_token']);
-		}
-		if ($mode === 'apikey') {
-			if (empty($this->config['api_key'])) {
-				$this->error = 'Cle API Rexel manquante';
+			$subscriptionHeader = $this->getSubscriptionHeader();
+			if ($subscriptionHeader === false) {
 				return false;
 			}
-			$header = !empty($this->config['api_key_header']) ? (string) $this->config['api_key_header'] : 'x-api-key';
-			return array($header.': '.$this->config['api_key']);
+			return array_merge(array('Authorization: Bearer '.$this->config['bearer_token']), $subscriptionHeader);
+		}
+		if ($mode === 'apikey') {
+			return $this->getSubscriptionHeader();
 		}
 		if ($mode === 'oauth2') {
 			$token = $this->getOauthAccessToken();
 			if ($token === false) {
 				return false;
 			}
-			return array('Authorization: Bearer '.$token);
+			$subscriptionHeader = $this->getSubscriptionHeader();
+			if ($subscriptionHeader === false) {
+				return false;
+			}
+			return array_merge(array('Authorization: Bearer '.$token), $subscriptionHeader);
 		}
 
 		$this->error = 'Mode authentification Rexel inconnu: '.$mode;
@@ -347,7 +374,9 @@ class RexelApi
 			'client_id' => (string) $this->config['client_id'],
 			'client_secret' => (string) $this->config['client_secret'],
 		);
-		if (!empty($this->config['token_scope'])) {
+		if (!empty($this->config['token_resource'])) {
+			$postFields['resource'] = (string) $this->config['token_resource'];
+		} elseif (!empty($this->config['token_scope'])) {
 			$postFields['scope'] = (string) $this->config['token_scope'];
 		}
 
@@ -365,6 +394,8 @@ class RexelApi
 		$curlError = curl_error($ch);
 		$httpStatus = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
 		curl_close($ch);
+
+		$this->debugLog('RexelSync OAuth2 token response http_status='.$httpStatus);
 
 		if ($raw === false) {
 			$this->error = 'Erreur cURL token Rexel: '.$curlError;
@@ -465,6 +496,129 @@ class RexelApi
 		}
 
 		return $fallback;
+	}
+
+	/**
+	 * Return a subscription key header for Rexel API Management.
+	 *
+	 * @return array<int,string>|false
+	 */
+	private function getSubscriptionHeader()
+	{
+		if (empty($this->config['api_key'])) {
+			$this->error = 'Cle de souscription Rexel manquante';
+			return false;
+		}
+
+		$header = !empty($this->config['api_key_header']) ? (string) $this->config['api_key_header'] : 'Ocp-Apim-Subscription-Key';
+		if (!preg_match('/^[A-Za-z0-9-]+$/', $header)) {
+			$this->error = 'Nom d en-tete de souscription Rexel invalide';
+			return false;
+		}
+
+		return array($header.': '.$this->config['api_key']);
+	}
+
+	/**
+	 * Read and validate a required numeric config value.
+	 *
+	 * @param string $key Config key
+	 * @param string $error Error message
+	 * @return string|false
+	 */
+	private function getRequiredNumericConfig($key, $error)
+	{
+		$value = isset($this->config[$key]) ? trim((string) $this->config[$key]) : '';
+		if ($value === '' || !preg_match('/^[0-9]+$/', $value)) {
+			$this->error = $error;
+			return false;
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Return a standard client-side error payload.
+	 *
+	 * @param string $message Error message
+	 * @return array<string,mixed>
+	 */
+	private function buildClientError($message)
+	{
+		return array(
+			'success' => false,
+			'status' => 'error',
+			'price' => null,
+			'stock' => null,
+			'http_status' => 0,
+			'message' => $message,
+		);
+	}
+
+	/**
+	 * Return HTTP header names only, without values.
+	 *
+	 * @param array<int,string> $headers HTTP headers
+	 * @return array<int,string>
+	 */
+	private function getHeaderNames(array $headers)
+	{
+		$names = array();
+		foreach ($headers as $header) {
+			$parts = explode(':', $header, 2);
+			$names[] = trim($parts[0]);
+		}
+
+		return $names;
+	}
+
+	/**
+	 * Mask customer and commercial data before debug logging.
+	 *
+	 * @param mixed $value Value
+	 * @return mixed
+	 */
+	private function maskPayloadForLog($value)
+	{
+		if (!is_array($value)) {
+			return $value;
+		}
+
+		$masked = array();
+		foreach ($value as $key => $item) {
+			if (in_array((string) $key, array('idCustomer', 'salesAgreement'), true)) {
+				$masked[$key] = '***';
+				continue;
+			}
+			$masked[$key] = $this->maskPayloadForLog($item);
+		}
+
+		return $masked;
+	}
+
+	/**
+	 * Encode debug payload safely.
+	 *
+	 * @param mixed $value Value
+	 * @return string
+	 */
+	private function jsonForLog($value)
+	{
+		$json = json_encode($value);
+		return $json === false ? '[unavailable]' : $json;
+	}
+
+	/**
+	 * Write a debug log entry when Dolibarr logging is available.
+	 *
+	 * @param string $message Message
+	 * @return void
+	 */
+	private function debugLog($message)
+	{
+		if (function_exists('dol_syslog')) {
+			dol_syslog($message, defined('LOG_DEBUG') ? LOG_DEBUG : 7);
+		}
 	}
 
 	/**
