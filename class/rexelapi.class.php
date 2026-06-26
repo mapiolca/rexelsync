@@ -111,18 +111,6 @@ class RexelApi
 			$response = $this->postJson(self::PRICE_PATH, $payload);
 		}
 		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
-			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, true, false, true);
-			if ($commonPayload === false) {
-				return $this->buildClientError($this->error);
-			}
-
-			$this->debugLog('RexelSync API price retry with getProductSalePricesExtRequest envelope after BW-RESTJSON-100016');
-			$payload = array(
-				'getProductSalePricesExtRequest' => $commonPayload,
-			);
-			$response = $this->postJson(self::PRICE_PATH, $payload);
-		}
-		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
 			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, true, false, false);
 			if ($commonPayload === false) {
 				return $this->buildClientError($this->error);
@@ -130,7 +118,7 @@ class RexelApi
 
 			$this->debugLog('RexelSync API price retry with single productDetails object after BW-RESTJSON-100016');
 			$payload = array(
-				'getProductSalePricesExtRequest' => $commonPayload,
+				'getProductSalePricesExt' => $commonPayload,
 			);
 			$response = $this->postJson(self::PRICE_PATH, $payload);
 		}

@@ -10,6 +10,6 @@
 - Reject UUID-shaped OAuth2 client identifiers in the Rexel customer number field before calling the API.
 - Require a numeric Rexel customer account number and retry schema rejections with numeric root scalar fields.
 - Prefer explicit product references such as `3M_85851` for Rexel `supplierCode` and `supplierComRef` before falling back to the supplier reference.
-- Add schema-compatibility retries for alternate Rexel price envelope and single-object `productDetails` payloads.
+- Add schema-compatibility retries for single-object `productDetails` payloads.
 - Make the RexelSync log table SQL idempotent to avoid duplicate table and duplicate index errors on module reactivation.
 - Add debug logs for Rexel API endpoint, masked payload, header names, and HTTP status without exposing secrets.
