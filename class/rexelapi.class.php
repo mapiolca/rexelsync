@@ -98,6 +98,18 @@ class RexelApi
 			);
 			$response = $this->postJson(self::PRICE_PATH, $payload);
 		}
+		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false, false, true);
+			if ($commonPayload === false) {
+				return $this->buildClientError($this->error);
+			}
+
+			$this->debugLog('RexelSync API price retry with numeric scalar fields after BW-RESTJSON-100016');
+			$payload = array(
+				'getProductSalePricesExt' => $commonPayload,
+			);
+			$response = $this->postJson(self::PRICE_PATH, $payload);
+		}
 		if (empty($response['success'])) {
 			return array(
 				'success' => false,
@@ -175,6 +187,18 @@ class RexelApi
 			);
 			$response = $this->postJson(self::STOCK_PATH, $payload);
 		}
+		if (empty($response['success']) && $this->isRestJsonSchemaError($response['message'])) {
+			$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true, false, true);
+			if ($commonPayload === false) {
+				return $this->buildClientError($this->error);
+			}
+
+			$this->debugLog('RexelSync API stock retry with numeric scalar fields after BW-RESTJSON-100016');
+			$payload = array(
+				'getPositionsExtRequest' => $commonPayload,
+			);
+			$response = $this->postJson(self::STOCK_PATH, $payload);
+		}
 		if (empty($response['success'])) {
 			return array(
 				'success' => false,
@@ -237,19 +261,24 @@ class RexelApi
 	 * @param int    $qty Ordered quantity
 	 * @param bool   $includeDeliveryFields Include optional delivery fields
 	 * @param bool   $quantityAsString Send orderingQty as a JSON string
+	 * @param bool   $numericScalarFields Send numeric root fields as JSON numbers
 	 * @return array<string,mixed>|false
 	 */
-	private function buildCommonPayload($supplierCode, $supplierComRef, $qty, $includeDeliveryFields, $quantityAsString = true)
+	private function buildCommonPayload($supplierCode, $supplierComRef, $qty, $includeDeliveryFields, $quantityAsString = true, $numericScalarFields = false)
 	{
 		$agenceCode = $this->getOptionalNumericConfig('agence_code', 'Code agence Rexel invalide');
 		if ($agenceCode === false) {
 			return false;
 		}
+		if ($numericScalarFields && !$this->isNumericString((string) $this->config['id_customer'])) {
+			$this->error = 'Numero client Rexel invalide: idCustomer doit etre numerique';
+			return false;
+		}
 
 		$orderingQty = max(1, (int) $qty);
 		$payload = array(
-			'idNumVersion' => '1',
-			'idCustomer' => (string) $this->config['id_customer'],
+			'idNumVersion' => $numericScalarFields ? 1 : '1',
+			'idCustomer' => $numericScalarFields ? (int) $this->config['id_customer'] : (string) $this->config['id_customer'],
 			'productDetails' => array(
 				array(
 					'supplierCode' => (string) $supplierCode,
@@ -260,7 +289,7 @@ class RexelApi
 		);
 
 		if ($agenceCode !== '') {
-			$payload['agenceCode'] = $agenceCode;
+			$payload['agenceCode'] = $numericScalarFields ? (int) $agenceCode : $agenceCode;
 		}
 
 		foreach (array(
@@ -625,7 +654,11 @@ class RexelApi
 
 		$masked = array();
 		foreach ($value as $key => $item) {
-			if (in_array((string) $key, array('idCustomer', 'salesAgreement'), true)) {
+			if ((string) $key === 'idCustomer') {
+				$masked[$key] = $this->isNumericString((string) $item) ? '*** (numeric)' : '*** (non-numeric)';
+				continue;
+			}
+			if ((string) $key === 'salesAgreement') {
 				$masked[$key] = '***';
 				continue;
 			}
@@ -669,6 +702,17 @@ class RexelApi
 	private function isRestJsonSchemaError($message)
 	{
 		return is_string($message) && strpos($message, 'BW-RESTJSON-100016') !== false;
+	}
+
+	/**
+	 * Check if a value contains only digits.
+	 *
+	 * @param string $value Value
+	 * @return bool
+	 */
+	private function isNumericString($value)
+	{
+		return (bool) preg_match('/^[0-9]+$/', trim($value));
 	}
 
 	/**

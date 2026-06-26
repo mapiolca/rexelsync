@@ -190,6 +190,8 @@ class RexelSync
 			$missing[] = 'numero client Rexel';
 		} elseif ($this->looksLikeUuid((string) $config['id_customer'])) {
 			$missing[] = 'numero client Rexel invalide: le client_id OAuth2 ne doit pas etre utilise comme idCustomer';
+		} elseif (!preg_match('/^[0-9]+$/', trim((string) $config['id_customer']))) {
+			$missing[] = 'numero client Rexel numerique';
 		}
 		if (empty($config['base_url'])) {
 			$missing[] = 'URL API Rexel';
