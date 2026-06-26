@@ -106,6 +106,7 @@ class modRexelSync extends DolibarrModules
 			'perms' => '$user->hasRight("rexelsync", "sync", "read")',
 			'target' => '',
 			'user' => 2,
+			'prefix' => img_picto('', $this->picto, 'class="pictofixedwidth valignmiddle"'),
 		);
 		$this->menu[$r++] = array(
 			'fk_menu' => 'fk_mainmenu=products,fk_leftmenu=rexelsync',

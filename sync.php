@@ -36,6 +36,7 @@ if (!$res) {
 }
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.form.class.php';
+require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 require_once __DIR__.'/lib/rexelsync.lib.php';
 require_once __DIR__.'/class/rexelsync.class.php';
 
@@ -314,6 +315,14 @@ if (empty($rows)) {
 }
 
 foreach ($rows as $row) {
+	$product = new Product($db);
+	$product->id = (int) $row['fk_product'];
+	$product->ref = (string) $row['ref_product'];
+	$product->label = (string) $row['label_product'];
+	$product->type = (int) $row['product_type'];
+	$product->status = (int) $row['product_status'];
+	$product->status_buy = (int) $row['product_status_buy'];
+
 	$log = null;
 	if (!empty($row['last_sync_status']) || !empty($row['last_sync_datec'])) {
 		$log = array(
@@ -324,7 +333,7 @@ foreach ($rows as $row) {
 	}
 	print '<tr class="oddeven">';
 	print '<td class="center">'.((int) $row['price_line_id']).'</td>';
-	print '<td><a href="'.DOL_URL_ROOT.'/product/card.php?id='.((int) $row['fk_product']).'">'.dol_escape_htmltag($row['ref_product']).'</a></td>';
+	print '<td>'.$product->getNomUrl(0, '', 0, 0).'</td>';
 	print '<td>'.dol_escape_htmltag($row['label_product']).'</td>';
 	print '<td>'.dol_escape_htmltag($row['ref_fourn']).'</td>';
 	print '<td>';

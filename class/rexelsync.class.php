@@ -343,6 +343,7 @@ class RexelSync
 		$sortorder = strtoupper($sortorder) === 'DESC' ? 'DESC' : 'ASC';
 
 		$sql = "SELECT pfp.rowid AS price_line_id, pfp.fk_product, p.ref AS ref_product, p.label AS label_product,";
+		$sql .= " p.fk_product_type AS product_type, p.tosell AS product_status, p.tobuy AS product_status_buy,";
 		$sql .= " pfp.ref_fourn, pfp.price, pfp.unitprice, pfp.quantity, pfp.tva_tx, pfp.remise_percent, pfp.remise,";
 		$sql .= " pfp.charges, pfp.fk_availability, pfp.delivery_time_days, pfp.supplier_reputation, pfp.desc_fourn,";
 		$sql .= " ef.supplier_stock, lastlog.datec AS last_sync_datec, lastlog.status AS last_sync_status,";
@@ -375,6 +376,9 @@ class RexelSync
 				'fk_product' => (int) $obj->fk_product,
 				'ref_product' => $obj->ref_product,
 				'label_product' => $obj->label_product,
+				'product_type' => (int) $obj->product_type,
+				'product_status' => (int) $obj->product_status,
+				'product_status_buy' => (int) $obj->product_status_buy,
 				'ref_fourn' => $obj->ref_fourn,
 				'supplier_code' => $parsed['supplier_code'],
 				'supplier_com_ref' => $parsed['supplier_com_ref'],

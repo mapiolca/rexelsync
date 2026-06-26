@@ -28,3 +28,5 @@
 - Scope RexelSync pagination colors to Dolibarr native pagination colors.
 - Add internal setup tabs for compatibility diagnostics and module information.
 - Add the Dolibarr object pictogram PNG variant for RexelSync and fix the global synchronization button contrast.
+- Display the RexelSync pictogram in front of the parent left menu label.
+- Render product references in the synchronization list with the native product `getNomUrl()` link.
