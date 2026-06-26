@@ -45,10 +45,10 @@ RexelSyncTokenScopeHelp=Scope optionnel, utilisé seulement si la ressource OAut
 RexelSyncSecretAlreadySaved=Secret déjà enregistré - laisser vide pour conserver
 
 RexelSyncRequestSettings=Paramètres requêtes Rexel
-RexelSyncIdCodOrigin=idCodOrigin
-RexelSyncIdCodOriginHelp=Identifiant technique d'origine de l'appel, si fourni par Rexel.
+RexelSyncIdCodOrigin=Mot client / idCodOrigin
+RexelSyncIdCodOriginHelp=Mot client fourni par Rexel, par exemple JPSUN, envoyé dans idCodOrigin.
 RexelSyncAgenceCode=Code agence
-RexelSyncAgenceCodeHelp=Code agence Rexel obligatoire, transmis dans agenceCode.
+RexelSyncAgenceCodeHelp=Code agence Rexel optionnel. Laisser vide si Rexel ne l'a pas fourni ; il sera alors omis du payload.
 RexelSyncZipCode=Code postal
 RexelSyncZipCodeHelp=Code postal de livraison optionnel.
 RexelSyncCity=Ville

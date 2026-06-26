@@ -192,9 +192,7 @@ class RexelSync
 		if (empty($config['base_url'])) {
 			$missing[] = 'URL API Rexel';
 		}
-		if (empty($config['agence_code'])) {
-			$missing[] = 'code agence Rexel';
-		} elseif (!preg_match('/^[0-9]+$/', (string) $config['agence_code'])) {
+		if (!empty($config['agence_code']) && !preg_match('/^[0-9]+$/', (string) $config['agence_code'])) {
 			$missing[] = 'code agence Rexel numerique';
 		}
 		if ($config['auth_mode'] === 'bearer' && empty($config['bearer_token'])) {

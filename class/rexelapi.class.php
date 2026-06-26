@@ -215,7 +215,7 @@ class RexelApi
 	 */
 	private function buildCommonPayload($supplierCode, $supplierComRef, $qty)
 	{
-		$agenceCode = $this->getRequiredNumericConfig('agence_code', 'Code agence Rexel manquant ou invalide');
+		$agenceCode = $this->getOptionalNumericConfig('agence_code', 'Code agence Rexel invalide');
 		if ($agenceCode === false) {
 			return false;
 		}
@@ -230,8 +230,11 @@ class RexelApi
 					'orderingQty' => (string) max(1, (int) $qty),
 				),
 			),
-			'agenceCode' => $agenceCode,
 		);
+
+		if ($agenceCode !== '') {
+			$payload['agenceCode'] = $agenceCode;
+		}
 
 		foreach (array(
 			'idCodOrigin' => 'id_cod_origin',
@@ -520,16 +523,16 @@ class RexelApi
 	}
 
 	/**
-	 * Read and validate a required numeric config value.
+	 * Read and validate an optional numeric config value.
 	 *
 	 * @param string $key Config key
 	 * @param string $error Error message
-	 * @return string|false
+	 * @return string|false Empty string when the config value is not set
 	 */
-	private function getRequiredNumericConfig($key, $error)
+	private function getOptionalNumericConfig($key, $error)
 	{
 		$value = isset($this->config[$key]) ? trim((string) $this->config[$key]) : '';
-		if ($value === '' || !preg_match('/^[0-9]+$/', $value)) {
+		if ($value !== '' && !preg_match('/^[0-9]+$/', $value)) {
 			$this->error = $error;
 			return false;
 		}

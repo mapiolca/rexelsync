@@ -27,7 +27,7 @@ This version targets the Rexel Discovery API endpoints:
 
 Rexel API calls are sent with the documented API Management subscription key header `Ocp-Apim-Subscription-Key` and a JWT `Authorization: Bearer ...` header when bearer or OAuth2 authentication is selected. OAuth2 supports the Azure AD v1 `resource` parameter, with `scope` kept as a fallback.
 
-The Rexel branch code is required and is sent as `agenceCode`. Product request quantities are sent as JSON strings in `orderingQty`, matching the Rexel API documentation.
+The Rexel customer word is sent as `idCodOrigin` when configured. The Rexel branch code is optional; when it is configured, it is sent as `agenceCode`, otherwise it is omitted from the payload. Product request quantities are sent as JSON strings in `orderingQty`, matching the Rexel API documentation.
 
 The purchase price is updated from `clientNetPrice`. Supplier stock is stored in the `supplier_stock` extrafield on `product_fournisseur_price` as:
 

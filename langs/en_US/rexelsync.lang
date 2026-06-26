@@ -45,10 +45,10 @@ RexelSyncTokenScopeHelp=Optional scope, used only when OAuth2 resource is empty.
 RexelSyncSecretAlreadySaved=Secret already saved - leave empty to keep it
 
 RexelSyncRequestSettings=Rexel request settings
-RexelSyncIdCodOrigin=idCodOrigin
-RexelSyncIdCodOriginHelp=Technical origin identifier, if provided by Rexel.
+RexelSyncIdCodOrigin=Customer word / idCodOrigin
+RexelSyncIdCodOriginHelp=Customer word provided by Rexel, for example JPSUN, sent in idCodOrigin.
 RexelSyncAgenceCode=Branch code
-RexelSyncAgenceCodeHelp=Required Rexel branch code sent in agenceCode.
+RexelSyncAgenceCodeHelp=Optional Rexel branch code. Leave empty when Rexel did not provide it; it will be omitted from the payload.
 RexelSyncZipCode=Zip code
 RexelSyncZipCodeHelp=Optional delivery zip code.
 RexelSyncCity=City
