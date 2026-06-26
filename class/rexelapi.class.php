@@ -76,7 +76,7 @@ class RexelApi
 	 */
 	public function fetchPrice($supplierCode, $supplierComRef, $qty)
 	{
-		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty);
+		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, false);
 		if ($commonPayload === false) {
 			return $this->buildClientError($this->error);
 		}
@@ -141,7 +141,7 @@ class RexelApi
 	 */
 	public function fetchStock($supplierCode, $supplierComRef, $qty)
 	{
-		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty);
+		$commonPayload = $this->buildCommonPayload($supplierCode, $supplierComRef, $qty, true);
 		if ($commonPayload === false) {
 			return $this->buildClientError($this->error);
 		}
@@ -211,9 +211,10 @@ class RexelApi
 	 * @param string $supplierCode Supplier code
 	 * @param string $supplierComRef Supplier commercial reference
 	 * @param int    $qty Ordered quantity
+	 * @param bool   $includeDeliveryFields Include optional delivery fields
 	 * @return array<string,mixed>|false
 	 */
-	private function buildCommonPayload($supplierCode, $supplierComRef, $qty)
+	private function buildCommonPayload($supplierCode, $supplierComRef, $qty, $includeDeliveryFields)
 	{
 		$agenceCode = $this->getOptionalNumericConfig('agence_code', 'Code agence Rexel invalide');
 		if ($agenceCode === false) {
@@ -238,12 +239,21 @@ class RexelApi
 
 		foreach (array(
 			'idCodOrigin' => 'id_cod_origin',
-			'zipCode' => 'zip_code',
-			'city' => 'city',
 			'salesAgreement' => 'sales_agreement',
 		) as $apiField => $configField) {
 			if (!empty($this->config[$configField])) {
 				$payload[$apiField] = (string) $this->config[$configField];
+			}
+		}
+
+		if ($includeDeliveryFields) {
+			foreach (array(
+				'zipCode' => 'zip_code',
+				'city' => 'city',
+			) as $apiField => $configField) {
+				if (!empty($this->config[$configField])) {
+					$payload[$apiField] = (string) $this->config[$configField];
+				}
 			}
 		}
 
