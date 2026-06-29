@@ -59,14 +59,14 @@ $offset = $limit * $page;
 $searchRefProduct = trim(GETPOST('search_ref_product', 'alphanohtml'));
 $searchRefFourn = trim(GETPOST('search_ref_fourn', 'alphanohtml'));
 $searchStatus = GETPOST('search_status', 'alpha');
-$dateStart = trim(GETPOST('date_start', 'restricthtml'));
-$dateEnd = trim(GETPOST('date_end', 'restricthtml'));
+$dateStart = rexelsyncLogsGetDateFilterValues('date_start', false);
+$dateEnd = rexelsyncLogsGetDateFilterValues('date_end', true);
 if (GETPOST('button_removefilter', 'alpha')) {
 	$searchRefProduct = '';
 	$searchRefFourn = '';
 	$searchStatus = '';
-	$dateStart = '';
-	$dateEnd = '';
+	$dateStart = rexelsyncLogsEmptyDateFilterValues();
+	$dateEnd = rexelsyncLogsEmptyDateFilterValues();
 }
 
 $allowedSortFields = array(
@@ -84,7 +84,20 @@ if (empty($allowedSortFields[$sortfield])) {
 }
 $sortorder = strtoupper($sortorder) === 'ASC' ? 'ASC' : 'DESC';
 
-$sqlWhere = " WHERE l.entity IN (".getEntity('product').")";
+$arrayfields = array(
+	'l.rowid' => array('label' => 'ID', 'checked' => 1),
+	'l.datec' => array('label' => 'Date', 'checked' => 1),
+	'l.ref_product' => array('label' => 'Ref', 'checked' => 1),
+	'l.ref_fourn' => array('label' => 'RexelSyncSupplierRef', 'checked' => 1),
+	'l.new_price' => array('label' => 'RexelSyncPriceEvolution', 'checked' => 1),
+	'l.new_stock' => array('label' => 'RexelSyncStockEvolution', 'checked' => 1),
+	'l.http_status' => array('label' => 'RexelSyncHttpStatus', 'checked' => 1),
+	'l.status' => array('label' => 'Status', 'checked' => 1),
+	'l.message' => array('label' => 'Message', 'checked' => 1),
+);
+$visibleColumnCount = count($arrayfields);
+
+$sqlWhere = " WHERE l.entity IN (".getEntity('productsupplierprice').")";
 if ($searchRefProduct !== '') {
 	$sqlWhere .= " AND l.ref_product LIKE '%".$db->escape($searchRefProduct)."%'";
 }
@@ -94,11 +107,11 @@ if ($searchRefFourn !== '') {
 if ($searchStatus !== '') {
 	$sqlWhere .= " AND l.status = '".$db->escape($searchStatus)."'";
 }
-if ($dateStart !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStart)) {
-	$sqlWhere .= " AND l.datec >= '".$db->escape($dateStart)." 00:00:00'";
+if (!empty($dateStart['timestamp'])) {
+	$sqlWhere .= " AND l.datec >= '".$db->escape($db->idate((int) $dateStart['timestamp']))."'";
 }
-if ($dateEnd !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateEnd)) {
-	$sqlWhere .= " AND l.datec <= '".$db->escape($dateEnd)." 23:59:59'";
+if (!empty($dateEnd['timestamp'])) {
+	$sqlWhere .= " AND l.datec <= '".$db->escape($db->idate((int) $dateEnd['timestamp']))."'";
 }
 
 $sqlCount = "SELECT COUNT(l.rowid) AS nb FROM ".MAIN_DB_PREFIX."rexelsync_log AS l".$sqlWhere;
@@ -119,11 +132,15 @@ foreach (array(
 	'search_ref_product' => $searchRefProduct,
 	'search_ref_fourn' => $searchRefFourn,
 	'search_status' => $searchStatus,
-	'date_start' => $dateStart,
-	'date_end' => $dateEnd,
+	'date_startday' => (string) $dateStart['day'],
+	'date_startmonth' => (string) $dateStart['month'],
+	'date_startyear' => (string) $dateStart['year'],
+	'date_endday' => (string) $dateEnd['day'],
+	'date_endmonth' => (string) $dateEnd['month'],
+	'date_endyear' => (string) $dateEnd['year'],
 ) as $key => $value) {
 	if ($value !== '') {
-		$param .= '&'.$key.'='.urlencode($value);
+		$param .= '&'.$key.'='.urlencode((string) $value);
 	}
 }
 
@@ -150,7 +167,12 @@ print '<div class="div-table-responsive">';
 print '<table class="tagtable liste centpercent">';
 print '<tr class="liste_titre_filter">';
 print '<td class="liste_titre center">'.$form->showFilterButtons('left').'</td>';
-print '<td class="liste_titre"><input type="date" class="flat maxwidth100" name="date_start" value="'.dol_escape_htmltag($dateStart).'"><br><input type="date" class="flat maxwidth100" name="date_end" value="'.dol_escape_htmltag($dateEnd).'"></td>';
+print '<td class="liste_titre nowrap">';
+print '<span class="small opacitymedium">'.$langs->trans('RexelSyncFilterFrom').'</span><br>';
+print $form->selectDate(!empty($dateStart['timestamp']) ? (int) $dateStart['timestamp'] : '', 'date_start', 0, 0, 1, '', 1, 0);
+print '<br><span class="small opacitymedium">'.$langs->trans('RexelSyncFilterTo').'</span><br>';
+print $form->selectDate(!empty($dateEnd['timestamp']) ? (int) $dateEnd['timestamp'] : '', 'date_end', 0, 0, 1, '', 1, 0);
+print '</td>';
 print '<td class="liste_titre"><input type="text" class="flat maxwidth100" name="search_ref_product" value="'.dol_escape_htmltag($searchRefProduct).'"></td>';
 print '<td class="liste_titre"><input type="text" class="flat maxwidth100" name="search_ref_fourn" value="'.dol_escape_htmltag($searchRefFourn).'"></td>';
 print '<td class="liste_titre"></td>';
@@ -173,7 +195,7 @@ print '<td>'.$langs->trans('Message').'</td>';
 print '</tr>';
 
 if (!$resql || $db->num_rows($resql) === 0) {
-	print '<tr class="oddeven"><td colspan="9" class="opacitymedium">'.$langs->trans('NoRecordFound').'</td></tr>';
+	print '<tr class="oddeven"><td colspan="'.((int) $visibleColumnCount).'" class="opacitymedium">'.$langs->trans('NoRecordFound').'</td></tr>';
 }
 
 if ($resql) {
@@ -238,4 +260,44 @@ function rexelsyncFormatEvolution($oldValue, $newValue, $diff, $isPrice)
 	}
 
 	return $html;
+}
+
+/**
+ * Return empty date filter values.
+ *
+ * @return array{timestamp:int,day:int,month:int,year:int}
+ */
+function rexelsyncLogsEmptyDateFilterValues()
+{
+	return array(
+		'timestamp' => 0,
+		'day' => 0,
+		'month' => 0,
+		'year' => 0,
+	);
+}
+
+/**
+ * Read date filter values generated by Form::selectDate().
+ *
+ * @param string $prefix Field prefix
+ * @param bool   $endOfDay Use end of selected day
+ * @return array{timestamp:int,day:int,month:int,year:int}
+ */
+function rexelsyncLogsGetDateFilterValues($prefix, $endOfDay)
+{
+	$values = rexelsyncLogsEmptyDateFilterValues();
+	$day = GETPOST($prefix.'day', 'int');
+	$month = GETPOST($prefix.'month', 'int');
+	$year = GETPOST($prefix.'year', 'int');
+	if ($day <= 0 || $month <= 0 || $year <= 0) {
+		return $values;
+	}
+
+	$values['day'] = (int) $day;
+	$values['month'] = (int) $month;
+	$values['year'] = (int) $year;
+	$values['timestamp'] = dol_mktime($endOfDay ? 23 : 0, $endOfDay ? 59 : 0, $endOfDay ? 59 : 0, (int) $month, (int) $day, (int) $year);
+
+	return $values;
 }

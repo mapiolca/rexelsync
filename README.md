@@ -1,6 +1,6 @@
 # RexelSync for Dolibarr
 
-RexelSync synchronizes Dolibarr supplier purchase prices and supplier stock for the Dolibarr supplier configured as `REXEL`.
+RexelSync synchronizes Dolibarr supplier purchase prices, supplier stock, and the Rexel customer profile cache for the Dolibarr supplier configured as `REXEL`.
 
 ## Installation
 
@@ -22,10 +22,13 @@ The Dolibarr product reference is not used to build Rexel `supplierCode` or `sup
 
 ## Rexel API Scope
 
-This version targets the Rexel Discovery API endpoints:
+This version covers the Rexel Discovery API endpoints:
 
 - `POST /external/productprices/productSalePrices`
 - `POST /external/stocks/positions`
+- `GET /external/customers/{idCustomer}`
+
+The Discovery `units`, quotes and orders endpoints are identified in the Rexel offer but are not integrated yet. Premium-only product media, CEE, environmental, replacement and sustainable endpoints are listed as unavailable in the Compatibility tab and are not reimplemented locally.
 
 Rexel API calls use OAuth2 client credentials only. The module fetches an access token from the configured token URL with `client_id`, `client_secret` and `scope`, then sends Rexel requests with `Authorization: Bearer ...` and the fixed API Management header `Ocp-Apim-Subscription-Key`. A legacy `REXELSYNC_TOKEN_RESOURCE` constant is still accepted silently for existing Azure AD v1 configurations, but it is no longer exposed in setup. The Rexel `idCustomer` must be the numeric Rexel customer account number, not the OAuth2 `client_id` and not the customer word sent in `idCodOrigin`.
 
@@ -35,11 +38,22 @@ The purchase price is updated from `clientNetPrice`. Supplier stock is stored in
 
 `availableBranchStock + availableCLRStock + availableServiceCenterStock`
 
+## Customer Synchronization
+
+The Customers setup tab calls `GET /external/customers/{idCustomer}` with the same OAuth2 and subscription-key authentication as the product endpoints. It stores a per-entity cache linked to the configured Rexel supplier thirdparty through `fk_soc`:
+
+- customer profile and billing address in `rexelsync_customer_profile`;
+- delivery addresses in `rexelsync_customer_address`;
+- customer agreements and derogations in `rexelsync_customer_agreement`.
+
+The cache is refreshed transactionally for the active entity. It does not create a parallel Dolibarr thirdparty or address book; Dolibarr native thirdparty data remains the source of truth for ERP business records.
+
 ## Dolibarr Features
 
 - Setup page with Rexel API settings and supplier association.
 - Manual sync page with one-line synchronization and all-line AJAX batch synchronization with progress.
 - Log page with price and stock evolution.
+- Internal Customers setup tab to synchronize and display Rexel customer profile, delivery addresses and agreements.
 - Daily disabled cron job for automated synchronization.
 - Supplier purchase price extrafield `supplier_stock`.
 - Hook display on Rexel supplier proposal and supplier order lines.

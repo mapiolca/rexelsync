@@ -26,6 +26,11 @@ function rexelsyncAdminPrepareHead()
 	$head[$h][2] = 'settings';
 	$h++;
 
+	$head[$h][0] = dol_buildpath('/rexelsync/admin/customers.php', 1);
+	$head[$h][1] = $langs->trans('RexelSyncCustomers');
+	$head[$h][2] = 'customers';
+	$h++;
+
 	$head[$h][0] = dol_buildpath('/rexelsync/admin/compatibility.php', 1);
 	$head[$h][1] = $langs->trans('Compatibility');
 	$head[$h][2] = 'compatibility';
@@ -161,6 +166,9 @@ function rexelsyncTranslateMessage($message)
 	}
 	if ($message === 'Stocks Rexel introuvables dans la reponse') {
 		return $langs->trans('RexelSyncErrorStockMissing');
+	}
+	if ($message === 'Fiche client Rexel introuvable dans la reponse') {
+		return $langs->trans('RexelSyncErrorCustomerProfileMissing');
 	}
 	if ($message === 'Numero client Rexel invalide: idCustomer doit etre numerique') {
 		return $langs->trans('RexelSyncErrorCustomerIdInvalid');

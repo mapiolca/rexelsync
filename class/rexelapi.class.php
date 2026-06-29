@@ -15,6 +15,7 @@ class RexelApi
 	const CLIENT_VERSION = '1.0.0';
 	const PRICE_PATH = '/external/productprices/productSalePrices';
 	const STOCK_PATH = '/external/stocks/positions';
+	const CUSTOMER_PATH = '/external/customers/';
 
 	/** @var array<string,mixed> */
 	private $config;
@@ -67,6 +68,49 @@ class RexelApi
 		);
 	}
 
+	/**
+	 * Fetch Rexel customer profile, delivery addresses and agreements.
+	 *
+	 * @param string $idCustomer Rexel customer account number
+	 * @return array<string,mixed>
+	 */
+	public function fetchCustomer($idCustomer)
+	{
+		$idCustomer = trim((string) $idCustomer);
+		if ($idCustomer === '') {
+			return $this->buildClientError('Numero client Rexel manquant');
+		}
+
+		$response = $this->getJson(self::CUSTOMER_PATH.rawurlencode($idCustomer));
+		if (empty($response['success'])) {
+			return array(
+				'success' => false,
+				'status' => 'error',
+				'customer' => null,
+				'http_status' => (int) $response['http_status'],
+				'message' => $response['message'],
+			);
+		}
+
+		$customer = $this->extractCustomerPayload($response['data']);
+		if (empty($customer)) {
+			return array(
+				'success' => false,
+				'status' => 'not_found',
+				'customer' => null,
+				'http_status' => (int) $response['http_status'],
+				'message' => $this->extractApiMessage($response['data'], 'Fiche client Rexel introuvable dans la reponse'),
+			);
+		}
+
+		return array(
+			'success' => true,
+			'status' => 'ok',
+			'customer' => $customer,
+			'http_status' => (int) $response['http_status'],
+			'message' => '',
+		);
+	}
 	/**
 	 * Fetch customer net price.
 	 *
@@ -406,6 +450,66 @@ class RexelApi
 	}
 
 	/**
+	 * GET JSON from Rexel.
+	 *
+	 * @param string $path API path
+	 * @return array<string,mixed>
+	 */
+	private function getJson($path)
+	{
+		if (!function_exists('curl_init')) {
+			return array('success' => false, 'http_status' => 0, 'message' => 'Extension PHP cURL indisponible', 'data' => null);
+		}
+
+		$url = rtrim((string) $this->config['base_url'], '/').$path;
+		$headers = array('Accept: application/json');
+		$authHeaders = $this->getAuthHeaders();
+		if ($authHeaders === false) {
+			return array('success' => false, 'http_status' => 0, 'message' => $this->error, 'data' => null);
+		}
+		$headers = array_merge($headers, $authHeaders);
+
+		$this->debugLog('RexelSync API client_version='.self::CLIENT_VERSION.' request method=GET path='.$path.' headers='.implode(',', $this->getHeaderNames($headers)));
+
+		$ch = curl_init($url);
+		curl_setopt_array($ch, array(
+			CURLOPT_HTTPGET => true,
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_CONNECTTIMEOUT => 15,
+			CURLOPT_TIMEOUT => 60,
+			CURLOPT_HTTPHEADER => $headers,
+		));
+
+		$raw = curl_exec($ch);
+		$curlError = curl_error($ch);
+		$httpStatus = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+
+		$this->debugLog('RexelSync API response path='.$path.' http_status='.$httpStatus);
+
+		if ($raw === false) {
+			return array('success' => false, 'http_status' => $httpStatus, 'message' => 'Erreur cURL Rexel: '.$curlError, 'data' => null);
+		}
+
+		$data = json_decode((string) $raw, true);
+		if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+			return array('success' => false, 'http_status' => $httpStatus, 'message' => 'Reponse Rexel non JSON: '.json_last_error_msg(), 'data' => null);
+		}
+
+		if ($httpStatus < 200 || $httpStatus >= 300) {
+			$this->debugLog('RexelSync API error response path='.$path.' body='.$this->truncateLogString($this->jsonForLog($this->maskPayloadForLog($data))));
+
+			return array(
+				'success' => false,
+				'http_status' => $httpStatus,
+				'message' => $this->extractApiMessage($data, 'Erreur HTTP Rexel '.$httpStatus),
+				'data' => $data,
+			);
+		}
+
+		return array('success' => true, 'http_status' => $httpStatus, 'message' => '', 'data' => $data);
+	}
+	/**
 	 * Return OAuth2 and Rexel API Management headers.
 	 *
 	 * @return array<int,string>|false
@@ -541,6 +645,35 @@ class RexelApi
 		return $fallback;
 	}
 
+	/**
+	 * Extract customer payload from possible Rexel response wrappers.
+	 *
+	 * @param mixed $data Response data
+	 * @return array<string,mixed>|null
+	 */
+	private function extractCustomerPayload($data)
+	{
+		if (!is_array($data)) {
+			return null;
+		}
+		if (isset($data['data']) && is_array($data['data'])) {
+			$data = $data['data'];
+		}
+		if (isset($data['customer']) && is_array($data['customer'])) {
+			return $data['customer'];
+		}
+		if (isset($data['customers']) && is_array($data['customers']) && isset($data['customers'][0]) && is_array($data['customers'][0])) {
+			return $data['customers'][0];
+		}
+		if (isset($data[0]) && is_array($data[0])) {
+			return $data[0];
+		}
+		if (isset($data['customerId']) || isset($data['shippingAddresses']) || isset($data['customerAgreements'])) {
+			return $data;
+		}
+
+		return null;
+	}
 	/**
 	 * Extract a readable message from a Rexel response.
 	 *

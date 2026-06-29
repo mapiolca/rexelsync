@@ -111,6 +111,20 @@ $filters = array(
 	'search_last_sync_endmonth' => (string) $searchLastSyncEnd['month'],
 	'search_last_sync_endyear' => (string) $searchLastSyncEnd['year'],
 );
+
+$arrayfields = array(
+	'pfp.rowid' => array('label' => 'ID', 'checked' => 1),
+	'p.ref' => array('label' => 'Ref', 'checked' => 1),
+	'p.label' => array('label' => 'Label', 'checked' => 1),
+	'pfp.ref_fourn' => array('label' => 'RexelSyncSupplierRef', 'checked' => 1),
+	'parsed_ref' => array('label' => 'RexelSyncParsedRef', 'checked' => 1),
+	'pfp.unitprice' => array('label' => 'RexelSyncCurrentPrice', 'checked' => 1),
+	'ef.supplier_stock' => array('label' => 'RexelSyncSupplierStock', 'checked' => 1),
+	'lastlog.datec' => array('label' => 'RexelSyncLastSync', 'checked' => 1),
+	'lastlog.status' => array('label' => 'Status', 'checked' => 1),
+	'action' => array('label' => 'Action', 'checked' => 1),
+);
+$visibleColumnCount = count($arrayfields);
 $listContextQuery = rexelsyncBuildListContextQuery($sortfield, $sortorder, $page, $limit, $limitWasSet, $filters);
 $listContextUrl = $_SERVER['PHP_SELF'].($listContextQuery !== '' ? '?'.$listContextQuery : '');
 
@@ -311,7 +325,7 @@ print '<td class="center">'.$langs->trans('Action').'</td>';
 print '</tr>';
 
 if (empty($rows)) {
-	print '<tr class="oddeven"><td colspan="10" class="opacitymedium">'.$langs->trans('NoRecordFound').'</td></tr>';
+	print '<tr class="oddeven"><td colspan="'.((int) $visibleColumnCount).'" class="opacitymedium">'.$langs->trans('NoRecordFound').'</td></tr>';
 }
 
 foreach ($rows as $row) {

@@ -344,7 +344,7 @@ class RexelSync
 
 		$sql = "SELECT pfp.rowid AS price_line_id, pfp.fk_product, p.ref AS ref_product, p.label AS label_product,";
 		$sql .= " p.fk_product_type AS product_type, p.tosell AS product_status, p.tobuy AS product_status_buy,";
-		$sql .= " pfp.ref_fourn, pfp.price, pfp.unitprice, pfp.quantity, pfp.tva_tx, pfp.remise_percent, pfp.remise,";
+		$sql .= " pfp.entity AS supplier_price_entity, pfp.ref_fourn, pfp.price, pfp.unitprice, pfp.quantity, pfp.tva_tx, pfp.remise_percent, pfp.remise,";
 		$sql .= " pfp.charges, pfp.fk_availability, pfp.delivery_time_days, pfp.supplier_reputation, pfp.desc_fourn,";
 		$sql .= " ef.supplier_stock, lastlog.datec AS last_sync_datec, lastlog.status AS last_sync_status,";
 		$sql .= " lastlog.message AS last_sync_message, lastlog.http_status AS last_sync_http_status";
@@ -379,6 +379,7 @@ class RexelSync
 				'product_type' => (int) $obj->product_type,
 				'product_status' => (int) $obj->product_status,
 				'product_status_buy' => (int) $obj->product_status_buy,
+				'supplier_price_entity' => (int) $obj->supplier_price_entity,
 				'ref_fourn' => $obj->ref_fourn,
 				'supplier_code' => $parsed['supplier_code'],
 				'supplier_com_ref' => $parsed['supplier_com_ref'],
@@ -823,10 +824,12 @@ class RexelSync
 	{
 		global $conf;
 
+		$logEntity = !empty($row['supplier_price_entity']) ? (int) $row['supplier_price_entity'] : (int) $conf->entity;
+
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."rexelsync_log (";
 		$sql .= "entity, fk_product, fk_product_fournisseur_price, ref_product, ref_fourn, old_price, new_price, old_stock, new_stock, status, message, http_status, datec";
 		$sql .= ") VALUES (";
-		$sql .= ((int) $conf->entity).",";
+		$sql .= $logEntity.",";
 		$sql .= ((int) $row['fk_product']).",";
 		$sql .= ((int) $row['price_line_id']).",";
 		$sql .= "'".$this->db->escape((string) $row['ref_product'])."',";
@@ -859,7 +862,7 @@ class RexelSync
 		$sql = " LEFT JOIN (";
 		$sql .= " SELECT fk_product_fournisseur_price, MAX(rowid) AS maxrowid";
 		$sql .= " FROM ".MAIN_DB_PREFIX."rexelsync_log";
-		$sql .= " WHERE entity IN (".getEntity('product').")";
+		$sql .= " WHERE entity IN (".getEntity('productsupplierprice').")";
 		$sql .= " GROUP BY fk_product_fournisseur_price";
 		$sql .= " ) AS latestlog ON latestlog.fk_product_fournisseur_price = pfp.rowid";
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."rexelsync_log AS lastlog ON lastlog.rowid = latestlog.maxrowid";

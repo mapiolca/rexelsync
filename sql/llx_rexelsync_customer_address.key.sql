@@ -1,0 +1,1 @@
+-- Indexes are declared in llx_rexelsync_customer_address.sql so module activation remains idempotent.

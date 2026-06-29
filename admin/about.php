@@ -106,6 +106,7 @@ print '<table class="noborder centpercent">';
 print '<tr class="liste_titre"><th>'.$langs->trans('RexelSyncAboutFeatures').'</th></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('RexelSyncAboutFeaturePrices').'</td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('RexelSyncAboutFeatureStock').'</td></tr>';
+print '<tr class="oddeven"><td>'.$langs->trans('RexelSyncAboutFeatureCustomers').'</td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('RexelSyncAboutFeatureLogs').'</td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('RexelSyncAboutFeatureAjax').'</td></tr>';
 print '<tr class="oddeven"><td>'.$langs->trans('RexelSyncAboutFeatureCron').'</td></tr>';

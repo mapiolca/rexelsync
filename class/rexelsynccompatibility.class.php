@@ -15,7 +15,9 @@
  *     description: string,
  *     min_dolibarr: string,
  *     min_php: string,
- *     checks: list<string>
+ *     checks: list<string>,
+ *     available?: bool,
+ *     reason?: string
  * }
  * @phpstan-type RexelSyncCompatibilityStatus array{
  *     label: string,
@@ -77,6 +79,54 @@ class RexelSyncCompatibility
 				'min_php' => self::MIN_PHP_VERSION,
 				'checks' => array('curl_init'),
 			),
+			'price_sync_decouverte' => array(
+				'label' => 'RexelSyncCompatibilityFeaturePriceSync',
+				'description' => 'RexelSyncCompatibilityFeaturePriceSyncDesc',
+				'min_dolibarr' => self::MIN_DOLIBARR_VERSION,
+				'min_php' => self::MIN_PHP_VERSION,
+				'checks' => array('curl_init'),
+			),
+			'stock_sync_decouverte' => array(
+				'label' => 'RexelSyncCompatibilityFeatureStockSync',
+				'description' => 'RexelSyncCompatibilityFeatureStockSyncDesc',
+				'min_dolibarr' => self::MIN_DOLIBARR_VERSION,
+				'min_php' => self::MIN_PHP_VERSION,
+				'checks' => array('curl_init', 'ExtraFields'),
+			),
+			'customer_profile_decouverte' => array(
+				'label' => 'RexelSyncCompatibilityFeatureCustomer',
+				'description' => 'RexelSyncCompatibilityFeatureCustomerDesc',
+				'min_dolibarr' => self::MIN_DOLIBARR_VERSION,
+				'min_php' => self::MIN_PHP_VERSION,
+				'checks' => array('curl_init'),
+			),
+			'product_units_decouverte' => array(
+				'label' => 'RexelSyncCompatibilityFeatureProductUnits',
+				'description' => 'RexelSyncCompatibilityFeatureProductUnitsDesc',
+				'min_dolibarr' => self::MIN_DOLIBARR_VERSION,
+				'min_php' => self::MIN_PHP_VERSION,
+				'checks' => array('curl_init'),
+				'available' => false,
+				'reason' => 'RexelSyncCompatibilityReasonNotIntegrated',
+			),
+			'quotes_decouverte' => array(
+				'label' => 'RexelSyncCompatibilityFeatureQuotes',
+				'description' => 'RexelSyncCompatibilityFeatureQuotesDesc',
+				'min_dolibarr' => self::MIN_DOLIBARR_VERSION,
+				'min_php' => self::MIN_PHP_VERSION,
+				'checks' => array('curl_init'),
+				'available' => false,
+				'reason' => 'RexelSyncCompatibilityReasonNotIntegrated',
+			),
+			'orders_decouverte' => array(
+				'label' => 'RexelSyncCompatibilityFeatureOrders',
+				'description' => 'RexelSyncCompatibilityFeatureOrdersDesc',
+				'min_dolibarr' => self::MIN_DOLIBARR_VERSION,
+				'min_php' => self::MIN_PHP_VERSION,
+				'checks' => array('curl_init'),
+				'available' => false,
+				'reason' => 'RexelSyncCompatibilityReasonNotIntegrated',
+			),
 			'ajax_batch_sync' => array(
 				'label' => 'RexelSyncCompatibilityFeatureAjaxBatch',
 				'description' => 'RexelSyncCompatibilityFeatureAjaxBatchDesc',
@@ -105,6 +155,11 @@ class RexelSyncCompatibility
 				'min_php' => self::MIN_PHP_VERSION,
 				'checks' => array(),
 			),
+			'premium_media' => self::premiumOnlyFeature('RexelSyncCompatibilityFeaturePremiumMedia', 'RexelSyncCompatibilityFeaturePremiumMediaDesc'),
+			'premium_product_cee' => self::premiumOnlyFeature('RexelSyncCompatibilityFeaturePremiumCee', 'RexelSyncCompatibilityFeaturePremiumCeeDesc'),
+			'premium_product_environmental' => self::premiumOnlyFeature('RexelSyncCompatibilityFeaturePremiumEnvironmental', 'RexelSyncCompatibilityFeaturePremiumEnvironmentalDesc'),
+			'premium_product_replacement' => self::premiumOnlyFeature('RexelSyncCompatibilityFeaturePremiumReplacement', 'RexelSyncCompatibilityFeaturePremiumReplacementDesc'),
+			'premium_product_sustainable' => self::premiumOnlyFeature('RexelSyncCompatibilityFeaturePremiumSustainable', 'RexelSyncCompatibilityFeaturePremiumSustainableDesc'),
 		);
 	}
 
@@ -176,6 +231,10 @@ class RexelSyncCompatibility
 				}
 			}
 		}
+		if ($available && array_key_exists('available', $feature) && empty($feature['available'])) {
+			$available = false;
+			$reason = !empty($feature['reason']) ? $feature['reason'] : 'RexelSyncCompatibilityReasonUnavailable';
+		}
 
 		return array(
 			'label' => $feature['label'],
@@ -186,6 +245,26 @@ class RexelSyncCompatibility
 			'code' => $code,
 			'available' => $available,
 			'reason' => $reason,
+		);
+	}
+
+	/**
+	 * Build a Premium-only feature definition.
+	 *
+	 * @param string $label Label translation key
+	 * @param string $description Description translation key
+	 * @return RexelSyncCompatibilityFeature
+	 */
+	private static function premiumOnlyFeature($label, $description)
+	{
+		return array(
+			'label' => $label,
+			'description' => $description,
+			'min_dolibarr' => self::MIN_DOLIBARR_VERSION,
+			'min_php' => self::MIN_PHP_VERSION,
+			'checks' => array(),
+			'available' => false,
+			'reason' => 'RexelSyncCompatibilityReasonPremiumOnly',
 		);
 	}
 }

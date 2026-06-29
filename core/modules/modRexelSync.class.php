@@ -68,11 +68,13 @@ class modRexelSync extends DolibarrModules
 				'unitfrequency' => 3600,
 				'status' => 0,
 				'test' => 'isModEnabled("rexelsync")',
+				'priority' => 50,
 			),
 		);
 
 		$this->rights = array();
 		$r = 0;
+		$r++;
 		$this->rights[$r][0] = $this->numero * 100 + $r;
 		$this->rights[$r][1] = 'Read RexelSync data and logs';
 		$this->rights[$r][3] = 1;
@@ -157,7 +159,9 @@ class modRexelSync extends DolibarrModules
 		require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
 		require_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
 
-		dolibarr_set_const($this->db, 'REXELSYNC_SUPPLIER_STOCK_EXTRAFIELD', '1', 'yesno', 0, '', 0);
+		if (getDolGlobalString('REXELSYNC_SUPPLIER_STOCK_EXTRAFIELD') === '') {
+			dolibarr_set_const($this->db, 'REXELSYNC_SUPPLIER_STOCK_EXTRAFIELD', '1', 'yesno', 0, '', 0);
+		}
 
 		$extrafields = new ExtraFields($this->db);
 		$existing = $extrafields->fetch_name_optionals_label('product_fournisseur_price');
@@ -203,9 +207,6 @@ class modRexelSync extends DolibarrModules
 	 */
 	public function remove($options = '')
 	{
-		require_once DOL_DOCUMENT_ROOT.'/core/lib/admin.lib.php';
-		dolibarr_del_const($this->db, 'REXELSYNC_SUPPLIER_STOCK_EXTRAFIELD', 0);
-
 		return $this->_remove(array(), $options);
 	}
 }
